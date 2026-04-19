@@ -7,10 +7,13 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..');
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+
 // Comment image upload
 const commentStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '../public/uploads/comments');
+    const dir = path.join(UPLOADS_DIR, 'comments');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
@@ -151,7 +154,10 @@ function renderLessons(grouped, done, session) {
       <div class="cat-section" id="cat-${cat.slug}">
         <div class="cat-sec-header" onclick="toggleCat('${cat.slug}')">
           <div class="cat-sec-left">
-            <span class="cat-sec-icon" style="background:${bg};border-color:${color}30">${icon}</span>
+            ${cat.thumbnail
+              ? `<img src="${cat.thumbnail}" class="cat-sec-thumb">`
+              : `<span class="cat-sec-icon" style="background:${bg};border-color:${color}30">${icon}</span>`
+            }
             <div>
               <div class="cat-sec-title" style="color:${color}">${cat.title}</div>
               <div class="cat-sec-meta">${cat.lessons.length} хичээл · ${catDone} үзсэн</div>

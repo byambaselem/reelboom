@@ -334,3 +334,6 @@ code{font-family:var(--mono);font-size:12px;background:var(--bg3);padding:2px 6p
 
 /* Nav unread badge */
 .nav-badge{position:absolute;top:-6px;right:-10px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;font-family:var(--mono);min-width:18px;text-align:center;border:2px solid var(--bg);box-shadow:0 0 0 1px rgba(239,68,68,.5)}
+
+/* Category thumbnail in lessons page */
+.cat-sec-thumb{width:42px;height:42px;border-radius:12px;object-fit:cover;flex-shrink:0;border:1px solid var(--border)}

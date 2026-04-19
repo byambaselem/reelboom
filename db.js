@@ -1,7 +1,12 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 
-const db = new Database(path.join(__dirname, 'reelboom.db'));
+// Railway volume ашиглах тохиолдолд DATA_DIR = /data, локал дээр __dirname
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+const db = new Database(path.join(DATA_DIR, 'reelboom.db'));
 
 db.exec(`
   PRAGMA journal_mode=WAL;
@@ -31,6 +36,7 @@ db.exec(`
     title TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
     color TEXT DEFAULT 'purple',
+    thumbnail TEXT,
     sort_order INTEGER DEFAULT 0
   );
 
@@ -127,6 +133,7 @@ const migrations = [
   'ALTER TABLE chat_messages ADD COLUMN target_id INTEGER',
   'ALTER TABLE chat_messages ADD COLUMN video TEXT',
   'ALTER TABLE chat_messages ADD COLUMN is_read INTEGER DEFAULT 0',
+  'ALTER TABLE categories ADD COLUMN thumbnail TEXT',
 ];
 migrations.forEach(sql => { try { db.exec(sql); } catch(e) {} });
 

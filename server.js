@@ -10,18 +10,22 @@ const { optionalAuth } = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Uploads хавтас үүсгэх
-const uploadsDir = path.join(__dirname, 'public/uploads');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+// Railway volume path (локал дээр __dirname, Railway дээр /data)
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+// Uploads — volume-ээс serve хийх
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // Session
 app.use(session({
-  store: new SQLiteStore({ db: 'sessions.db', dir: __dirname }),
+  store: new SQLiteStore({ db: 'sessions.db', dir: DATA_DIR }),
   secret: process.env.SESSION_SECRET || 'reelboom_secret_2024',
   resave: false,
   saveUninitialized: false,

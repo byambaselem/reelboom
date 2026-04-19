@@ -7,12 +7,14 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..');
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+
 // Multer setup for thumbnail upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '../public/uploads');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
+    if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    cb(null, UPLOADS_DIR);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -285,11 +287,15 @@ router.get('/categories', (req, res) => {
       <a href="/admin/categories/new" class="btn-primary" style="text-decoration:none">+ Шинэ бүлэг</a>
     </div>
     <table class="admin-table">
-      <thead><tr><th>Дараалал</th><th>Нэр</th><th>Slug</th><th>Өнгө</th><th>Хичээл</th><th></th></tr></thead>
+      <thead><tr><th>Дараалал</th><th>Зураг</th><th>Нэр</th><th>Slug</th><th>Өнгө</th><th>Хичээл</th><th></th></tr></thead>
       <tbody>
         ${cats.map(c => `
           <tr>
             <td style="font-family:var(--mono);color:var(--hint)">${c.sort_order}</td>
+            <td>${c.thumbnail
+              ? `<img src="${c.thumbnail}" style="width:40px;height:40px;object-fit:cover;border-radius:8px">`
+              : `<div style="width:40px;height:40px;border-radius:8px;background:${colorHex(c.color)}22;border:1px solid ${colorHex(c.color)}44"></div>`
+            }</td>
             <td style="font-weight:600;color:#fff">${c.title}</td>
             <td><code>${c.slug}</code></td>
             <td><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${colorHex(c.color)};margin-right:6px;vertical-align:middle"></span>${c.color}</td>
@@ -313,12 +319,13 @@ router.get('/categories/new', (req, res) => {
   res.send(adminLayout('Шинэ бүлэг', catForm(null, maxOrder + 1)));
 });
 
-router.post('/categories/new', (req, res) => {
+router.post('/categories/new', upload.single('thumbnail'), (req, res) => {
   const { title, slug, color, sort_order } = req.body;
   if (!title || !slug) return res.redirect('/admin/categories');
   const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  const thumbnail = req.file ? '/uploads/' + req.file.filename : null;
   try {
-    db.prepare('INSERT INTO categories (title, slug, color, sort_order) VALUES (?,?,?,?)').run(title.trim(), cleanSlug, color || 'purple', parseInt(sort_order) || 0);
+    db.prepare('INSERT INTO categories (title, slug, color, thumbnail, sort_order) VALUES (?,?,?,?,?)').run(title.trim(), cleanSlug, color || 'purple', thumbnail, parseInt(sort_order) || 0);
   } catch(e) {
     return res.send(adminLayout('Шинэ бүлэг', catForm(null, sort_order) + `<p style="color:#f87171;margin-top:1rem">Алдаа: slug давхардсан байна. Өөр slug ашиглана уу.</p>`));
   }
@@ -331,11 +338,13 @@ router.get('/categories/:id/edit', (req, res) => {
   res.send(adminLayout('Бүлэг засах', catForm(cat, cat.sort_order)));
 });
 
-router.post('/categories/:id/edit', (req, res) => {
+router.post('/categories/:id/edit', upload.single('thumbnail'), (req, res) => {
   const { title, slug, color, sort_order } = req.body;
   const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  const existing = db.prepare('SELECT thumbnail FROM categories WHERE id=?').get(req.params.id);
+  const thumbnail = req.file ? '/uploads/' + req.file.filename : (existing?.thumbnail || null);
   try {
-    db.prepare('UPDATE categories SET title=?, slug=?, color=?, sort_order=? WHERE id=?').run(title.trim(), cleanSlug, color || 'purple', parseInt(sort_order) || 0, req.params.id);
+    db.prepare('UPDATE categories SET title=?, slug=?, color=?, thumbnail=?, sort_order=? WHERE id=?').run(title.trim(), cleanSlug, color || 'purple', thumbnail, parseInt(sort_order) || 0, req.params.id);
   } catch(e) {}
   res.redirect('/admin/categories');
 });
@@ -355,7 +364,7 @@ function catForm(cat, defaultOrder) {
   const colors = ['blue','purple','green','teal','amber','pink','rose','indigo'];
   return `
     <h2>${cat ? 'Бүлэг засах' : 'Шинэ бүлэг'}</h2>
-    <form method="POST" action="${cat ? `/admin/categories/${cat.id}/edit` : '/admin/categories/new'}" class="lesson-form">
+    <form method="POST" action="${cat ? `/admin/categories/${cat.id}/edit` : '/admin/categories/new'}" enctype="multipart/form-data" class="lesson-form">
       <div class="field">
         <label>Бүлгийн нэр (Монголоор)</label>
         <input type="text" name="title" value="${cat?.title||''}" placeholder="жишээ: AI засвар" required>
@@ -367,7 +376,13 @@ function catForm(cat, defaultOrder) {
         <small style="color:var(--hint);font-size:11px">Жижиг латин үсэг, тоо, зураас (-) л ашиглана</small>
       </div>
       <div class="field">
-        <label>Өнгө</label>
+        <label>Thumbnail зураг</label>
+        ${cat?.thumbnail ? `<div style="margin-bottom:8px"><img src="${cat.thumbnail}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;border:1px solid var(--border)"></div>` : ''}
+        <input type="file" name="thumbnail" accept="image/*" style="color:var(--muted);font-size:13px">
+        <small style="color:var(--hint);font-size:11px;display:block;margin-top:4px">JPG, PNG · 1:1 харьцаа зөвлөнө · 2MB хүртэл</small>
+      </div>
+      <div class="field">
+        <label>Өнгө (thumbnail байхгүй үед ашиглана)</label>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
           ${colors.map(c => `
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--muted)">
@@ -647,9 +662,8 @@ router.get('/settings', (req, res) => {
 const uploadSettings = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
-      const dir = path.join(__dirname, '../public/uploads');
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      cb(null, dir);
+      if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+      cb(null, UPLOADS_DIR);
     },
     filename: (req, file, cb) => {
       const ext = path.extname(file.originalname).toLowerCase();
@@ -928,7 +942,7 @@ router.get('/chat/:userId', (req, res) => {
 const uploadChatAdmin = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
-      const dir = path.join(__dirname, '../public/uploads/chat');
+      const dir = path.join(UPLOADS_DIR, 'chat');
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       cb(null, dir);
     },
