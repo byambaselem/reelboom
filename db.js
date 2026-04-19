@@ -88,8 +88,11 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
+    target_id INTEGER,
     content TEXT NOT NULL,
     image TEXT,
+    video TEXT,
+    is_read INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
@@ -103,6 +106,17 @@ db.exec(`
     thumbnail TEXT,
     sort_order INTEGER DEFAULT 0
   );
+
+  CREATE TABLE IF NOT EXISTS user_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    session_id TEXT UNIQUE NOT NULL,
+    device_info TEXT,
+    ip TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
 `);
 
 const migrations = [
@@ -110,6 +124,9 @@ const migrations = [
   'ALTER TABLE comments ADD COLUMN image TEXT',
   'ALTER TABLE comments ADD COLUMN parent_id INTEGER',
   'ALTER TABLE users ADD COLUMN avatar TEXT',
+  'ALTER TABLE chat_messages ADD COLUMN target_id INTEGER',
+  'ALTER TABLE chat_messages ADD COLUMN video TEXT',
+  'ALTER TABLE chat_messages ADD COLUMN is_read INTEGER DEFAULT 0',
 ];
 migrations.forEach(sql => { try { db.exec(sql); } catch(e) {} });
 
@@ -189,6 +206,12 @@ if (!adminExists) {
 
 const defaultSettings = {
   'hero_title': 'Reel бичлэгийн мэргэжлийн сургалт',
+  'hero_line1': 'Reel бичлэгийн',
+  'hero_line2': 'мэргэжлийн',
+  'hero_line3': 'сургалт',
+  'hero_line1_mode': 'white',
+  'hero_line2_mode': 'gradient',
+  'hero_line3_mode': 'white',
   'hero_subtitle': 'iPhone бичлэгээс эхлэн CapCut монтаж, Freepik AI, агуулгын стратеги хүртэл.',
   'hero_badge': 'Монгол хэлний reel сургалт',
   'cta_title': 'Өнөөдөр эхлэцгээе',
@@ -196,6 +219,14 @@ const defaultSettings = {
   'stat_lessons': '32', 'stat_blocks': '8', 'stat_hours': '~32ц', 'stat_access': '∞',
   'logo_size': '48',
   'grad_from': '#8b5cf6', 'grad_to': '#10b981',
+  'text_color_mode': 'gradient',
+  'contact_phone': '+976 99112233',
+  'contact_email': 'info@reelboom.mn',
+  'contact_facebook': 'https://facebook.com/reelboom',
+  'contact_instagram': 'https://instagram.com/reelboom',
+  'contact_address': 'Улаанбаатар хот, Монгол улс',
+  'contact_title': 'Бидэнтэй холбогдох',
+  'contact_subtitle': 'Асуулт, санал хүсэлт байвал манай багтай холбогдоно уу',
 };
 const insertSetting = db.prepare('INSERT OR IGNORE INTO site_settings (key, value) VALUES (?,?)');
 Object.entries(defaultSettings).forEach(([k,v]) => insertSetting.run(k, v));

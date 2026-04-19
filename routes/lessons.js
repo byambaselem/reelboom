@@ -336,9 +336,12 @@ function layout(title, session, body) {
     <a href="/" class="nav-logo">ReeL<span>BOOM</span></a>
     <div class="nav-links">
       <a href="/lessons" class="nav-link">Хичээлүүд</a>
-      <a href="/chat" class="nav-link">💬 Чат</a>
+      ${session.role !== 'admin' ? '<a href="/chat" class="nav-link">💬 Админтай чатлах</a>' : ''}
       ${session.role === 'admin' ? '<a href="/admin" class="nav-link nav-admin">⚙ Admin</a>' : ''}
-      <span class="nav-user">${session.userName || ''}</span>
+      <a href="/profile" class="nav-link nav-profile">
+        ${session.avatar ? `<img src="${session.avatar}" class="nav-avatar">` : `<span class="nav-avatar-init">${(session.userName||'?').charAt(0).toUpperCase()}</span>`}
+        ${session.userName || ''}
+      </a>
       <a href="/logout" class="nav-logout">Гарах</a>
     </div>
   </nav>

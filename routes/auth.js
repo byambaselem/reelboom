@@ -17,9 +17,31 @@ router.post('/login', (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.send(renderLogin({ error: 'И-мэйл эсвэл нууц үг буруу байна.', next: next || '/lessons' }));
   }
+
+  // Device session шалгах (admin-д хязгаар байхгүй)
+  if (user.role !== 'admin') {
+    const MAX_DEVICES = 3;
+    const sessions = db.prepare('SELECT * FROM user_sessions WHERE user_id=? ORDER BY last_seen DESC').all(user.id);
+    if (sessions.length >= MAX_DEVICES) {
+      // Хамгийн хуучныг устгах
+      const oldest = sessions[sessions.length - 1];
+      db.prepare('DELETE FROM user_sessions WHERE id=?').run(oldest.id);
+    }
+  }
+
   req.session.userId = user.id;
   req.session.userName = user.name;
   req.session.role = user.role;
+  req.session.avatar = user.avatar;
+
+  // Шинэ device бүртгэх
+  const ua = (req.headers['user-agent'] || '').substring(0, 200);
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+  try {
+    db.prepare('INSERT OR REPLACE INTO user_sessions (user_id, session_id, device_info, ip, last_seen) VALUES (?,?,?,?,CURRENT_TIMESTAMP)')
+      .run(user.id, req.sessionID, ua, ip);
+  } catch(e) {}
+
   res.redirect(next || '/lessons');
 });
 

@@ -52,15 +52,17 @@ router.get('/', (req, res) => {
     <div class="admin-grid">
       <div class="admin-card">
         <h3>Шинэ мэдэгдлүүд</h3>
-        ${notifications.map(n => `
-          <div class="notif-item ${n.is_read ? 'read' : 'unread'}">
-            <div class="notif-type">${n.type === 'comment' ? '💬' : '🔔'}</div>
-            <div class="notif-body">
+        ${notifications.map(n => {
+          const link = n.type === 'comment' ? `/lessons/${n.related_id}#comments` : (n.type === 'chat' ? `/admin/chat/${n.related_id}` : '#');
+          return `
+          <a href="${link}" class="notif-item ${n.is_read ? 'read' : 'unread'}" style="text-decoration:none;display:flex;gap:10px;padding:.75rem;margin:0 -.75rem;border-radius:10px;transition:background .15s">
+            <div class="notif-type">${n.type === 'comment' ? '💬' : n.type === 'chat' ? '✉️' : '🔔'}</div>
+            <div class="notif-body" style="flex:1">
               <div>${n.message}</div>
               <div class="notif-date">${new Date(n.created_at).toLocaleString('mn-MN')}</div>
             </div>
-          </div>
-        `).join('') || '<p class="empty">Мэдэгдэл байхгүй</p>'}
+          </a>`;
+        }).join('') || '<p class="empty">Мэдэгдэл байхгүй</p>'}
         <form method="POST" action="/admin/notifications/read-all" style="margin-top:1rem">
           <button type="submit" class="btn-small">Бүгдийг уншсан гэж тэмдэглэх</button>
         </form>
@@ -95,24 +97,29 @@ router.get('/', (req, res) => {
 
 // ─── Users ───────────────────────────────────────────────────────
 router.get('/users', (req, res) => {
-  const users = db.prepare("SELECT u.*, (SELECT COUNT(*) FROM progress p WHERE p.user_id=u.id) as done FROM users u WHERE u.role!='admin' ORDER BY u.created_at DESC").all();
+  const users = db.prepare("SELECT u.*, (SELECT COUNT(*) FROM progress p WHERE p.user_id=u.id) as done FROM users u ORDER BY u.role DESC, u.created_at DESC").all();
   res.send(adminLayout('Сурагчид', `
-    <h2>Сурагчид (${users.length})</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+      <h2 style="margin:0">Бүх хэрэглэгч (${users.length})</h2>
+      <a href="/admin/users/new-admin" class="btn-primary" style="text-decoration:none">+ Шинэ Admin нэмэх</a>
+    </div>
     <table class="admin-table">
-      <thead><tr><th>#</th><th>Нэр</th><th>И-мэйл</th><th>Код</th><th>Үзсэн</th><th>Огноо</th><th></th></tr></thead>
+      <thead><tr><th>#</th><th>Эрх</th><th>Нэр</th><th>И-мэйл</th><th>Код</th><th>Үзсэн</th><th>Огноо</th><th></th></tr></thead>
       <tbody>
         ${users.map(u => `
           <tr>
             <td>${u.id}</td>
-            <td>${u.name}</td>
+            <td>${u.role === 'admin' ? '<span class="admin-tag">ADMIN</span>' : '<span style="font-size:11px;color:var(--hint);font-family:var(--mono)">student</span>'}</td>
+            <td style="color:#fff;font-weight:600">${u.name}</td>
             <td>${u.email}</td>
             <td><code>${u.access_code || '—'}</code></td>
             <td>${u.done} хичээл</td>
             <td>${new Date(u.created_at).toLocaleDateString('mn-MN')}</td>
             <td>
+              ${u.id !== req.session.userId ? `
               <form method="POST" action="/admin/users/${u.id}/delete" style="display:inline">
                 <button class="btn-danger-sm" onclick="return confirm('Устгах уу?')">Устгах</button>
-              </form>
+              </form>` : '<span style="font-size:11px;color:var(--hint)">Та өөрөө</span>'}
             </td>
           </tr>
         `).join('')}
@@ -121,8 +128,52 @@ router.get('/users', (req, res) => {
   `));
 });
 
+router.get('/users/new-admin', (req, res) => {
+  res.send(adminLayout('Шинэ Admin', `
+    <h2 style="margin-bottom:1.5rem">Шинэ Admin нэмэх</h2>
+    <form method="POST" action="/admin/users/new-admin" class="lesson-form" style="max-width:500px;background:var(--bg);padding:1.5rem;border-radius:14px;border:1px solid var(--border)">
+      <div class="field">
+        <label>Нэр</label>
+        <input type="text" name="name" required placeholder="Админы нэр">
+      </div>
+      <div class="field">
+        <label>И-мэйл</label>
+        <input type="email" name="email" required placeholder="admin@example.com">
+      </div>
+      <div class="field">
+        <label>Нууц үг (6+ тэмдэгт)</label>
+        <input type="password" name="password" required minlength="6">
+      </div>
+      <div class="field">
+        <label>Нууц үг давтах</label>
+        <input type="password" name="password2" required minlength="6">
+      </div>
+      <div style="display:flex;gap:12px;margin-top:1rem">
+        <button type="submit" class="btn-primary">Admin нэмэх</button>
+        <a href="/admin/users" style="font-size:13px;color:var(--muted)">Цуцлах</a>
+      </div>
+    </form>
+  `));
+});
+
+router.post('/users/new-admin', (req, res) => {
+  const { name, email, password, password2 } = req.body;
+  if (!name?.trim() || !email?.trim() || !password) return res.redirect('/admin/users/new-admin');
+  if (password !== password2) return res.redirect('/admin/users/new-admin');
+  if (password.length < 6) return res.redirect('/admin/users/new-admin');
+  const exists = db.prepare('SELECT id FROM users WHERE email=?').get(email.trim().toLowerCase());
+  if (exists) return res.redirect('/admin/users');
+  const hash = bcrypt.hashSync(password, 10);
+  db.prepare("INSERT INTO users (name,email,password,role,is_verified) VALUES (?,?,?,?,1)")
+    .run(name.trim(), email.trim().toLowerCase(), hash, 'admin');
+  res.redirect('/admin/users');
+});
+
 router.post('/users/:id/delete', (req, res) => {
-  db.prepare('DELETE FROM users WHERE id=? AND role!=?').run(req.params.id, 'admin');
+  const id = parseInt(req.params.id);
+  if (id === req.session.userId) return res.redirect('/admin/users');
+  db.prepare('DELETE FROM user_sessions WHERE user_id=?').run(id);
+  db.prepare('DELETE FROM users WHERE id=?').run(id);
   res.redirect('/admin/users');
 });
 
@@ -398,16 +449,50 @@ router.get('/settings', (req, res) => {
       <div style="font-size:12px;font-weight:700;color:var(--purple-l);letter-spacing:1px;text-transform:uppercase;margin:1.5rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">Нүүр хуудас — Hero хэсэг</div>
 
       <div class="field">
-        <label>Badge текст (жижиг тэмдэглэгээ)</label>
+        <label>Badge текст</label>
         <input type="text" name="hero_badge" value="${settings.hero_badge||''}" placeholder="Монгол хэлний reel сургалт">
       </div>
-      <div class="field">
-        <label>Гол гарчиг</label>
-        <input type="text" name="hero_title" value="${settings.hero_title||''}" placeholder="Reel бичлэгийн мэргэжлийн сургалт">
+
+      <div style="padding:1rem;background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:12px">📝 Гарчиг — 3 мөр (өнгө тус тусдаа сонгоно)</div>
+
+        <div class="field">
+          <label>1-р мөр</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" name="hero_line1" value="${settings.hero_line1||'Reel бичлэгийн'}" style="flex:1">
+            <select name="hero_line1_mode" style="width:140px">
+              <option value="white" ${(settings.hero_line1_mode||'white')==='white'?'selected':''}>Цагаан</option>
+              <option value="gradient" ${settings.hero_line1_mode==='gradient'?'selected':''}>Градиент</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>2-р мөр</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" name="hero_line2" value="${settings.hero_line2||'мэргэжлийн'}" style="flex:1">
+            <select name="hero_line2_mode" style="width:140px">
+              <option value="white" ${settings.hero_line2_mode==='white'?'selected':''}>Цагаан</option>
+              <option value="gradient" ${(settings.hero_line2_mode||'gradient')==='gradient'?'selected':''}>Градиент</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:0">
+          <label>3-р мөр</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" name="hero_line3" value="${settings.hero_line3||'сургалт'}" style="flex:1">
+            <select name="hero_line3_mode" style="width:140px">
+              <option value="white" ${(settings.hero_line3_mode||'white')==='white'?'selected':''}>Цагаан</option>
+              <option value="gradient" ${settings.hero_line3_mode==='gradient'?'selected':''}>Градиент</option>
+            </select>
+          </div>
+        </div>
       </div>
+
       <div class="field">
-        <label>Тайлбар текст</label>
-        <textarea name="hero_subtitle" rows="3" placeholder="Тайлбар...">${settings.hero_subtitle||''}</textarea>
+        <label>Тайлбар текст (доод талын жижиг бичиг)</label>
+        <textarea name="hero_subtitle" rows="3">${settings.hero_subtitle||''}</textarea>
       </div>
 
       <div style="font-size:12px;font-weight:700;color:var(--purple-l);letter-spacing:1px;text-transform:uppercase;margin:1.5rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">Статистик тоонууд</div>
@@ -430,6 +515,29 @@ router.get('/settings', (req, res) => {
       <div class="field">
         <label>CTA тайлбар</label>
         <input type="text" name="cta_subtitle" value="${settings.cta_subtitle||''}">
+      </div>
+
+      <div style="font-size:12px;font-weight:700;color:var(--purple-l);letter-spacing:1px;text-transform:uppercase;margin:1.5rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">Бидэнтэй холбогдох</div>
+
+      <div class="field">
+        <label>Хэсгийн гарчиг</label>
+        <input type="text" name="contact_title" value="${settings.contact_title||'Бидэнтэй холбогдох'}">
+      </div>
+      <div class="field">
+        <label>Хэсгийн тайлбар</label>
+        <input type="text" name="contact_subtitle" value="${settings.contact_subtitle||''}">
+      </div>
+      <div class="field-row">
+        <div class="field"><label>📞 Утас</label><input type="text" name="contact_phone" value="${settings.contact_phone||''}" placeholder="+976 99112233"></div>
+        <div class="field"><label>✉ И-мэйл</label><input type="email" name="contact_email" value="${settings.contact_email||''}" placeholder="info@reelboom.mn"></div>
+      </div>
+      <div class="field">
+        <label>📍 Хаяг</label>
+        <input type="text" name="contact_address" value="${settings.contact_address||''}" placeholder="Улаанбаатар хот">
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Facebook</label><input type="text" name="contact_facebook" value="${settings.contact_facebook||''}" placeholder="https://facebook.com/..."></div>
+        <div class="field"><label>Instagram</label><input type="text" name="contact_instagram" value="${settings.contact_instagram||''}" placeholder="https://instagram.com/..."></div>
       </div>
 
       <div style="margin-top:1.5rem">
@@ -455,7 +563,7 @@ const uploadSettings = multer({
 });
 
 router.post('/settings', uploadSettings.fields([{ name: 'site_logo', maxCount: 1 }]), (req, res) => {
-  const fields = ['hero_title','hero_subtitle','hero_badge','cta_title','cta_subtitle','stat_lessons','stat_blocks','stat_hours','stat_access','logo_size','grad_from','grad_to'];
+  const fields = ['hero_title','hero_line1','hero_line2','hero_line3','hero_line1_mode','hero_line2_mode','hero_line3_mode','hero_subtitle','hero_badge','cta_title','cta_subtitle','stat_lessons','stat_blocks','stat_hours','stat_access','logo_size','grad_from','grad_to','text_color_mode','contact_title','contact_subtitle','contact_phone','contact_email','contact_facebook','contact_instagram','contact_address'];
   const upsert = db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?,?)');
   fields.forEach(f => { if (req.body[f] !== undefined) upsert.run(f, req.body[f]); });
   if (req.files?.site_logo?.[0]) {
@@ -574,7 +682,225 @@ function homeCatForm(c, defaultOrder) {
   `;
 }
 
-// ─── Comments ────────────────────────────────────────────────────
+// ─── Admin Chat Inbox ────────────────────────────────────────────
+router.get('/chat', (req, res) => {
+  // Бүх хэрэглэгчдийг, тус бүрийн сүүлийн мессежтэй нь жагсаах
+  const users = db.prepare(`
+    SELECT u.id, u.name, u.email,
+      (SELECT content FROM chat_messages WHERE (user_id=u.id AND target_id=?) OR (user_id=? AND target_id=u.id) ORDER BY created_at DESC LIMIT 1) as last_msg,
+      (SELECT created_at FROM chat_messages WHERE (user_id=u.id AND target_id=?) OR (user_id=? AND target_id=u.id) ORDER BY created_at DESC LIMIT 1) as last_time,
+      (SELECT COUNT(*) FROM chat_messages WHERE user_id=u.id AND target_id=? AND is_read=0) as unread_count
+    FROM users u
+    WHERE u.role='student'
+    ORDER BY last_time DESC NULLS LAST
+  `).all(req.session.userId, req.session.userId, req.session.userId, req.session.userId, req.session.userId);
+
+  res.send(adminLayout('Чат Inbox', `
+    <h2 style="margin-bottom:1.25rem">💬 Чат Inbox (${users.length} сурагч)</h2>
+    <div class="chat-inbox">
+      ${users.map(u => `
+        <a href="/admin/chat/${u.id}" class="inbox-item ${u.unread_count > 0 ? 'unread' : ''}">
+          <div class="inbox-avatar">${u.name.charAt(0).toUpperCase()}</div>
+          <div class="inbox-info">
+            <div class="inbox-top">
+              <span class="inbox-name">${u.name}</span>
+              ${u.last_time ? `<span class="inbox-time">${new Date(u.last_time).toLocaleDateString('mn-MN')}</span>` : ''}
+            </div>
+            <div class="inbox-msg">${u.last_msg ? u.last_msg.substring(0, 80) + (u.last_msg.length > 80 ? '...' : '') : '<em style="color:var(--hint)">Чат хоосон</em>'}</div>
+          </div>
+          ${u.unread_count > 0 ? `<span class="inbox-badge">${u.unread_count}</span>` : ''}
+        </a>
+      `).join('')}
+      ${users.length === 0 ? '<p style="color:var(--hint);padding:2rem;text-align:center">Одоогоор сурагч байхгүй</p>' : ''}
+    </div>
+  `));
+});
+
+router.get('/chat/:userId', (req, res) => {
+  const user = db.prepare("SELECT id, name, email FROM users WHERE id=? AND role='student'").get(req.params.userId);
+  if (!user) return res.redirect('/admin/chat');
+
+  const messages = db.prepare(`
+    SELECT m.*, u.name as user_name, u.role as user_role
+    FROM chat_messages m
+    JOIN users u ON m.user_id = u.id
+    WHERE (m.user_id=? AND m.target_id=?) OR (m.user_id=? AND m.target_id=?)
+    ORDER BY m.created_at ASC
+  `).all(user.id, req.session.userId, req.session.userId, user.id);
+
+  // Mark as read
+  db.prepare('UPDATE chat_messages SET is_read=1 WHERE user_id=? AND target_id=?').run(user.id, req.session.userId);
+
+  const msgHtml = messages.map(m => {
+    const isOwn = m.user_id === req.session.userId; // admin нь "own"
+    return `
+      <div class="chat-msg ${isOwn ? 'own' : ''}" data-id="${m.id}">
+        ${!isOwn ? `<div class="chat-avatar">${user.name.charAt(0).toUpperCase()}</div>` : ''}
+        <div class="chat-bubble ${isOwn ? 'own' : ''}">
+          ${!isOwn ? `<div class="chat-name">${user.name}</div>` : ''}
+          ${m.content ? `<div class="chat-text">${escHtmlAdmin(m.content).replace(/\n/g,'<br>')}</div>` : ''}
+          ${m.image ? `<a href="${m.image}" target="_blank"><img src="${m.image}" class="chat-img"></a>` : ''}
+          ${m.video ? `<video src="${m.video}" controls class="chat-video"></video>` : ''}
+          <div class="chat-time">${new Date(m.created_at).toLocaleTimeString('mn-MN',{hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const lastId = messages.length > 0 ? messages[messages.length - 1].id : 0;
+
+  res.send(adminLayout(`Чат — ${user.name}`, `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div>
+        <a href="/admin/chat" style="color:var(--purple-l);font-size:13px;text-decoration:none">← Inbox</a>
+        <h2 style="margin-top:4px">${user.name}</h2>
+        <p style="color:var(--hint);font-size:12px">${user.email}</p>
+      </div>
+    </div>
+    <div class="chat-wrap" style="max-width:760px;margin:0;height:calc(100vh - 240px);border:1px solid var(--border);border-radius:14px;padding:0 1rem">
+      <div class="chat-messages" id="chatMsgs">
+        ${msgHtml || '<p class="no-msg">Чат хоосон байна</p>'}
+      </div>
+      <form class="chat-form" method="POST" action="/admin/chat/${user.id}" enctype="multipart/form-data" id="chatForm">
+        <div class="chat-form-inner">
+          <label class="chat-attach" title="Зураг эсвэл видео"><input type="file" name="media" accept="image/*,video/*" onchange="document.getElementById('fname').textContent=this.files[0]?.name||''">📎</label>
+          <textarea name="content" placeholder="Хариулт бичих..." rows="1" id="chatInput"></textarea>
+          <button type="submit" class="chat-send">Илгээх</button>
+        </div>
+        <div id="fname" style="font-size:11px;color:var(--hint);margin-top:6px;padding:0 10px"></div>
+      </form>
+    </div>
+    <script>
+      const msgsEl = document.getElementById('chatMsgs');
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+      let lastId = ${lastId};
+      const adminId = ${req.session.userId};
+      const userId = ${user.id};
+      const userName = ${JSON.stringify(user.name)};
+
+      async function checkNew() {
+        try {
+          const r = await fetch('/admin/chat/' + userId + '/poll?since=' + lastId);
+          const data = await r.json();
+          if (data.length > 0) {
+            data.forEach(m => {
+              lastId = Math.max(lastId, m.id);
+              msgsEl.insertAdjacentHTML('beforeend', renderMsg(m));
+            });
+            msgsEl.scrollTop = msgsEl.scrollHeight;
+          }
+        } catch(e) {}
+      }
+      function renderMsg(m) {
+        const isOwn = m.user_id === adminId;
+        const time = new Date(m.created_at).toLocaleTimeString('mn-MN',{hour:'2-digit',minute:'2-digit'});
+        const content = (m.content||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\n/g,'<br>');
+        return '<div class="chat-msg ' + (isOwn?'own':'') + '">' +
+          (!isOwn ? '<div class="chat-avatar">' + userName.charAt(0).toUpperCase() + '</div>' : '') +
+          '<div class="chat-bubble ' + (isOwn?'own':'') + '">' +
+            (!isOwn ? '<div class="chat-name">' + userName + '</div>' : '') +
+            (m.content ? '<div class="chat-text">' + content + '</div>' : '') +
+            (m.image ? '<a href="' + m.image + '" target="_blank"><img src="' + m.image + '" class="chat-img"></a>' : '') +
+            (m.video ? '<video src="' + m.video + '" controls class="chat-video"></video>' : '') +
+            '<div class="chat-time">' + time + '</div>' +
+          '</div></div>';
+      }
+      setInterval(checkNew, 4000);
+      document.getElementById('chatInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('chatForm').submit(); }
+      });
+    </script>
+  `));
+});
+
+const uploadChatAdmin = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(__dirname, '../public/uploads/chat');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, 'adm_' + Date.now() + '_' + Math.random().toString(36).slice(2,6) + ext);
+    }
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
+
+router.post('/chat/:userId', uploadChatAdmin.single('media'), (req, res) => {
+  const userId = parseInt(req.params.userId);
+  const { content } = req.body;
+  if (!content?.trim() && !req.file) return res.redirect('/admin/chat/' + userId);
+  let image = null, video = null;
+  if (req.file) {
+    const url = '/uploads/chat/' + req.file.filename;
+    if (req.file.mimetype.startsWith('image/')) image = url;
+    else video = url;
+  }
+  db.prepare('INSERT INTO chat_messages (user_id, target_id, content, image, video) VALUES (?,?,?,?,?)')
+    .run(req.session.userId, userId, content?.trim() || '', image, video);
+  res.redirect('/admin/chat/' + userId);
+});
+
+router.get('/chat/:userId/poll', (req, res) => {
+  const userId = parseInt(req.params.userId);
+  const since = parseInt(req.query.since) || 0;
+  const messages = db.prepare(`
+    SELECT m.*, u.name as user_name, u.role as user_role
+    FROM chat_messages m
+    JOIN users u ON m.user_id = u.id
+    WHERE ((m.user_id=? AND m.target_id=?) OR (m.user_id=? AND m.target_id=?)) AND m.id > ?
+    ORDER BY m.created_at ASC
+  `).all(userId, req.session.userId, req.session.userId, userId, since);
+  res.json(messages);
+});
+
+function escHtmlAdmin(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Comments management ────────────────────────────────────────
+router.get('/comments', (req, res) => {
+  const comments = db.prepare(`
+    SELECT c.*, u.name as user_name, u.role as user_role, l.title as lesson_title, l.id as lesson_id
+    FROM comments c
+    JOIN users u ON c.user_id = u.id
+    JOIN lessons l ON c.lesson_id = l.id
+    ORDER BY c.created_at DESC
+    LIMIT 100
+  `).all();
+
+  res.send(adminLayout('Коммент удирдах', `
+    <h2 style="margin-bottom:1.25rem">💬 Коммент удирдах (${comments.length})</h2>
+    <div class="admin-comments-list">
+      ${comments.map(c => `
+        <div class="admin-cm-card">
+          <div class="admin-cm-head">
+            <div>
+              <b style="color:#fff">${c.user_name}</b>
+              ${c.user_role === 'admin' ? '<span class="admin-tag">ADMIN</span>' : ''}
+              ${c.parent_id ? '<span style="font-size:11px;color:var(--hint);font-family:var(--mono)">↳ хариулт</span>' : ''}
+            </div>
+            <span style="font-size:11px;color:var(--hint);font-family:var(--mono)">${new Date(c.created_at).toLocaleString('mn-MN')}</span>
+          </div>
+          <div style="font-size:12px;color:var(--purple-l);margin-bottom:8px">
+            <a href="/lessons/${c.lesson_id}#cm-${c.id}" style="color:var(--purple-l)">📚 ${c.lesson_title}</a>
+          </div>
+          ${c.content ? `<div style="font-size:14px;color:var(--text);margin-bottom:8px;white-space:pre-wrap">${c.content}</div>` : ''}
+          ${c.image ? `<img src="${c.image}" style="max-width:200px;border-radius:8px;margin-bottom:8px">` : ''}
+          <div style="display:flex;gap:8px">
+            <a href="/lessons/${c.lesson_id}#cm-${c.id}" class="btn-small" style="text-decoration:none">Хичээл дээр харах</a>
+            <form method="POST" action="/admin/comments/${c.id}/delete" style="display:inline">
+              <button class="btn-danger-sm" onclick="return confirm('Устгах уу?')">Устгах</button>
+            </form>
+          </div>
+        </div>
+      `).join('') || '<p class="empty">Коммент байхгүй</p>'}
+    </div>
+  `));
+});
+
+// ─── Legacy Comments delete ──────────────────────────────────────
 router.post('/comments/:id/delete', (req, res) => {
   db.prepare('DELETE FROM comments WHERE id=?').run(req.params.id);
   res.redirect('/admin');
@@ -666,8 +992,10 @@ function adminLayout(title, body) {
       <a href="/admin/categories" class="nav-link">Бүлгүүд</a>
       <a href="/admin/lessons" class="nav-link">Хичээл</a>
       <a href="/admin/homepage" class="nav-link">Нүүр бүлэг</a>
+      <a href="/admin/comments" class="nav-link">Коммент</a>
+      <a href="/admin/chat" class="nav-link">💬 Inbox</a>
       <a href="/admin/settings" class="nav-link">⚙ Тохиргоо</a>
-      <a href="/chat" class="nav-link">💬 Чат</a>
+      <a href="/profile" class="nav-link" style="color:var(--purple-l)">👤 Профайл</a>
       <a href="/logout" class="nav-logout">Гарах</a>
     </div>
   </nav>

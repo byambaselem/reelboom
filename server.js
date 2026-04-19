@@ -32,6 +32,7 @@ app.use(optionalAuth);
 
 // Routes
 app.use('/', require('./routes/auth'));
+app.use('/profile', require('./routes/profile'));
 app.use('/lessons', require('./routes/lessons'));
 app.use('/chat', require('./routes/chat'));
 app.use('/admin', require('./routes/admin'));
@@ -86,6 +87,15 @@ function renderHomepage(freeLessons, s = {}, homeCats = []) {
   const logoSize = parseInt(s.logo_size) || 48;
   const gradFrom = s.grad_from || '#8b5cf6';
   const gradTo = s.grad_to || '#10b981';
+  const line1 = s.hero_line1 || 'Reel бичлэгийн';
+  const line2 = s.hero_line2 || 'мэргэжлийн';
+  const line3 = s.hero_line3 || 'сургалт';
+  const mode1 = s.hero_line1_mode || 'white';
+  const mode2 = s.hero_line2_mode || 'gradient';
+  const mode3 = s.hero_line3_mode || 'white';
+  const styleOf = (mode) => mode === 'gradient'
+    ? `background:linear-gradient(135deg,${gradFrom},${gradTo});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text`
+    : `color:#fff`;
 
   const toolPillsHtml = homeCats.map(c => {
     const thumbHtml = c.thumbnail
@@ -128,6 +138,7 @@ function renderHomepage(freeLessons, s = {}, homeCats = []) {
   <nav class="main-nav">
     ${logo ? `<a href="/" class="nav-logo"><img src="${logo}" style="height:${logoSize}px;object-fit:contain"></a>` : `<div class="nav-logo">ReeL<span>BOOM</span></div>`}
     <div class="nav-links">
+      <a href="#contact" class="nav-link">Бидэнтэй холбогдох</a>
       <a href="/login" class="nav-link">Нэвтрэх</a>
       <a href="/register" class="btn-grad" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:700">Бүртгүүлэх</a>
     </div>
@@ -137,7 +148,11 @@ function renderHomepage(freeLessons, s = {}, homeCats = []) {
   <div class="landing-hero">
     <div>
       <div class="hero-eyebrow"><span class="eyebrow-line"></span>${badge}</div>
-      <h1 class="hero-h1"><span class="hero-grad">${title}</span></h1>
+      <h1 class="hero-h1">
+        <span style="${styleOf(mode1)};display:block">${line1}</span>
+        <span style="${styleOf(mode2)};display:block">${line2}</span>
+        <span style="${styleOf(mode3)};display:block">${line3}</span>
+      </h1>
       <p class="hero-p">${subtitle}</p>
       <div class="hero-btns">
         <a href="/register" class="btn-grad">Бүртгүүлэх ↗</a>
@@ -167,6 +182,57 @@ function renderHomepage(freeLessons, s = {}, homeCats = []) {
     <div class="section-h">Туршаад үзээрэй</div>
     <div class="free-grid">${freeCards}</div>
   </div>` : ''}
+
+  <!-- Contact -->
+  <div class="landing-contact" id="contact">
+    <div class="section-tag">// холбоо барих</div>
+    <div class="contact-head">
+      <h2 class="contact-title">${s.contact_title || 'Бидэнтэй холбогдох'}</h2>
+      <p class="contact-sub">${s.contact_subtitle || ''}</p>
+    </div>
+    <div class="contact-grid">
+      ${s.contact_phone ? `
+      <a href="tel:${s.contact_phone}" class="contact-item">
+        <div class="contact-icon">📞</div>
+        <div>
+          <div class="contact-label">Утас</div>
+          <div class="contact-value">${s.contact_phone}</div>
+        </div>
+      </a>` : ''}
+      ${s.contact_email ? `
+      <a href="mailto:${s.contact_email}" class="contact-item">
+        <div class="contact-icon">✉️</div>
+        <div>
+          <div class="contact-label">И-мэйл</div>
+          <div class="contact-value">${s.contact_email}</div>
+        </div>
+      </a>` : ''}
+      ${s.contact_facebook ? `
+      <a href="${s.contact_facebook}" target="_blank" class="contact-item">
+        <div class="contact-icon">📘</div>
+        <div>
+          <div class="contact-label">Facebook</div>
+          <div class="contact-value">Хуудас харах</div>
+        </div>
+      </a>` : ''}
+      ${s.contact_instagram ? `
+      <a href="${s.contact_instagram}" target="_blank" class="contact-item">
+        <div class="contact-icon">📸</div>
+        <div>
+          <div class="contact-label">Instagram</div>
+          <div class="contact-value">Хуудас харах</div>
+        </div>
+      </a>` : ''}
+      ${s.contact_address ? `
+      <div class="contact-item" style="grid-column:1/-1">
+        <div class="contact-icon">📍</div>
+        <div>
+          <div class="contact-label">Хаяг</div>
+          <div class="contact-value">${s.contact_address}</div>
+        </div>
+      </div>` : ''}
+    </div>
+  </div>
 
   <!-- CTA -->
   <div class="landing-cta">
