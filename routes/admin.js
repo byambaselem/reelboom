@@ -30,6 +30,13 @@ const upload = multer({
 
 router.use(requireAdmin);
 
+// Одоогийн request-ын unread count-г хадгалах (adminLayout-д ашиглана)
+let _currentUnread = 0;
+router.use((req, res, next) => {
+  _currentUnread = req.session.unreadChat || 0;
+  next();
+});
+
 // GET /admin
 router.get('/', (req, res) => {
   const users = db.prepare('SELECT COUNT(*) as c FROM users WHERE role!=?').get('admin').c;
@@ -1082,6 +1089,7 @@ function lessonForm(l, cats) {
 }
 
 function adminLayout(title, body) {
+  const unread = _currentUnread;
   return `<!DOCTYPE html><html lang="mn"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${title} — Admin</title>
@@ -1100,7 +1108,7 @@ function adminLayout(title, body) {
       <a href="/admin/lessons" class="nav-link">Хичээл</a>
       <a href="/admin/homepage" class="nav-link">Нүүр бүлэг</a>
       <a href="/admin/comments" class="nav-link">Коммент</a>
-      <a href="/admin/chat" class="nav-link">💬 Inbox</a>
+      <a href="/admin/chat" class="nav-link" style="position:relative">💬 Inbox${unread > 0 ? `<span class="nav-badge">${unread}</span>` : ''}</a>
       <a href="/admin/settings" class="nav-link">⚙ Тохиргоо</a>
       <a href="/profile" class="nav-link" style="color:var(--purple-l)">👤 Профайл</a>
       <a href="/logout" class="nav-logout">Гарах</a>

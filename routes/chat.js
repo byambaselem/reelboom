@@ -45,6 +45,13 @@ router.get('/', requireAuth, (req, res) => {
     ORDER BY m.created_at ASC
   `).all(req.session.userId, req.session.userId);
 
+  // Админаас ирсэн мессежүүдийг уншсан гэж тэмдэглэх
+  db.prepare(`
+    UPDATE chat_messages SET is_read = 1
+    WHERE target_id = ? AND user_id != ? AND is_read = 0
+  `).run(req.session.userId, req.session.userId);
+  req.session.unreadChat = 0;
+
   res.send(renderUserChat(messages, req.session));
 });
 
@@ -122,7 +129,7 @@ function renderUserChat(messages, session) {
     <a href="/" class="nav-logo">ReeL<span>BOOM</span></a>
     <div class="nav-links">
       <a href="/lessons" class="nav-link">Хичээлүүд</a>
-      <a href="/chat" class="nav-link" style="color:var(--purple-l)">💬 Админтай чатлах</a>
+      <a href="/chat" class="nav-link" style="color:var(--purple-l);position:relative">💬 Админтай чатлах${session.unreadChat > 0 ? `<span class="nav-badge">${session.unreadChat}</span>` : ''}</a>
       <a href="/profile" class="nav-link nav-profile">
         ${session.avatar ? `<img src="${session.avatar}" class="nav-avatar">` : `<span class="nav-avatar-init">${(session.userName||'?').charAt(0).toUpperCase()}</span>`}
         ${session.userName || ''}
