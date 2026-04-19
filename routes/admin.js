@@ -107,17 +107,20 @@ router.get('/users', (req, res) => {
       <thead><tr><th>#</th><th>Эрх</th><th>Нэр</th><th>И-мэйл</th><th>Код</th><th>Үзсэн</th><th>Огноо</th><th></th></tr></thead>
       <tbody>
         ${users.map(u => `
-          <tr>
+          <tr style="cursor:pointer" onclick="if(event.target.tagName!=='BUTTON' && event.target.tagName!=='FORM') window.location='/admin/users/${u.id}'">
             <td>${u.id}</td>
             <td>${u.role === 'admin' ? '<span class="admin-tag">ADMIN</span>' : '<span style="font-size:11px;color:var(--hint);font-family:var(--mono)">student</span>'}</td>
-            <td style="color:#fff;font-weight:600">${u.name}</td>
+            <td style="color:#fff;font-weight:600">
+              ${u.avatar ? `<img src="${u.avatar}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px">` : ''}
+              ${u.name}
+            </td>
             <td>${u.email}</td>
             <td><code>${u.access_code || '—'}</code></td>
             <td>${u.done} хичээл</td>
             <td>${new Date(u.created_at).toLocaleDateString('mn-MN')}</td>
             <td>
               ${u.id !== req.session.userId ? `
-              <form method="POST" action="/admin/users/${u.id}/delete" style="display:inline">
+              <form method="POST" action="/admin/users/${u.id}/delete" style="display:inline" onclick="event.stopPropagation()">
                 <button class="btn-danger-sm" onclick="return confirm('Устгах уу?')">Устгах</button>
               </form>` : '<span style="font-size:11px;color:var(--hint)">Та өөрөө</span>'}
             </td>
@@ -175,6 +178,93 @@ router.post('/users/:id/delete', (req, res) => {
   db.prepare('DELETE FROM user_sessions WHERE user_id=?').run(id);
   db.prepare('DELETE FROM users WHERE id=?').run(id);
   res.redirect('/admin/users');
+});
+
+// Admin-аас тухайн хэрэглэгчийг удирдах хуудас
+router.get('/users/:id', (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id=?').get(req.params.id);
+  if (!user) return res.redirect('/admin/users');
+  const sessions = db.prepare('SELECT * FROM user_sessions WHERE user_id=? ORDER BY last_seen DESC').all(user.id);
+  const progress = db.prepare(`
+    SELECT p.*, l.title as lesson_title, l.lesson_num
+    FROM progress p JOIN lessons l ON p.lesson_id=l.id
+    WHERE p.user_id=? ORDER BY p.completed_at DESC LIMIT 20
+  `).all(user.id);
+
+  function parseUA(ua) {
+    if (!ua) return 'Үл мэдэгдэх';
+    if (/iPhone|iPad/.test(ua)) return '📱 iPhone/iPad';
+    if (/Android/.test(ua)) return '📱 Android';
+    if (/Windows/.test(ua)) return '💻 Windows';
+    if (/Mac/.test(ua)) return '💻 Mac';
+    if (/Linux/.test(ua)) return '💻 Linux';
+    return ua.substring(0, 30);
+  }
+
+  res.send(adminLayout(user.name, `
+    <a href="/admin/users" style="color:var(--purple-l);font-size:13px;text-decoration:none">← Бүх хэрэглэгч</a>
+
+    <div style="display:flex;gap:1.5rem;align-items:center;margin:1rem 0 2rem;padding:1.5rem;background:var(--card);border:1px solid var(--border);border-radius:16px">
+      ${user.avatar
+        ? `<img src="${user.avatar}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--purple-bdr)">`
+        : `<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#10b981);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff">${user.name.charAt(0).toUpperCase()}</div>`
+      }
+      <div style="flex:1">
+        <h2 style="color:#fff;font-size:1.5rem;margin-bottom:4px">${user.name} ${user.role === 'admin' ? '<span class="admin-tag">ADMIN</span>' : ''}</h2>
+        <p style="color:var(--hint);font-size:13px;margin-bottom:4px">${user.email}</p>
+        <p style="color:var(--hint);font-size:11px;font-family:var(--mono)">Код: ${user.access_code || '—'} · Бүртгүүлсэн: ${new Date(user.created_at).toLocaleDateString('mn-MN')}</p>
+      </div>
+      ${user.id !== req.session.userId ? `
+      <div style="display:flex;gap:8px">
+        <a href="/admin/chat/${user.id}" class="btn-small" style="text-decoration:none">💬 Чатлах</a>
+        <form method="POST" action="/admin/users/${user.id}/delete" style="display:inline">
+          <button class="btn-danger-sm" onclick="return confirm('Хэрэглэгчийг бүхэлд нь устгах уу?')">Устгах</button>
+        </form>
+      </div>` : ''}
+    </div>
+
+    ${user.role === 'student' ? `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.25rem;margin-bottom:1rem">
+      <h3 style="color:#fff;font-size:14px;margin-bottom:4px">🔒 Нэвтэрсэн төхөөрөмжүүд (${sessions.length}/3)</h3>
+      <p style="color:var(--hint);font-size:12px;margin-bottom:1rem">3 төхөөрөмжийн хязгаартай. Та энд төхөөрөмж бүрийг гаргаж чадна.</p>
+      ${sessions.map(s => `
+        <div class="session-item">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#fff">${parseUA(s.device_info)}</div>
+            <div style="font-size:11px;color:var(--hint);font-family:var(--mono);margin-top:2px">IP: ${s.ip || '?'} · ${new Date(s.last_seen).toLocaleString('mn-MN')}</div>
+          </div>
+          <form method="POST" action="/admin/users/${user.id}/session/${s.id}/delete" style="display:inline">
+            <button class="btn-danger-sm" onclick="return confirm('Энэ төхөөрөмжөөс гаргах уу?')">Гаргах</button>
+          </form>
+        </div>
+      `).join('') || '<p style="color:var(--hint);font-size:13px;padding:1rem 0">Идэвхтэй төхөөрөмж байхгүй</p>'}
+      ${sessions.length > 0 ? `
+      <form method="POST" action="/admin/users/${user.id}/sessions/clear" style="margin-top:12px">
+        <button class="btn-danger-sm" onclick="return confirm('Бүх төхөөрөмжөөс гаргах уу?')">Бүгдээс гаргах</button>
+      </form>` : ''}
+    </div>
+
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.25rem">
+      <h3 style="color:#fff;font-size:14px;margin-bottom:12px">📚 Сүүлд үзсэн хичээлүүд (${progress.length})</h3>
+      ${progress.map(p => `
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+          <div><span style="font-family:var(--mono);color:var(--hint)">${String(p.lesson_num).padStart(2,'0')}</span> <a href="/lessons/${p.lesson_id}" style="color:#fff">${p.lesson_title}</a></div>
+          <span style="color:var(--hint);font-size:11px">${new Date(p.completed_at).toLocaleDateString('mn-MN')}</span>
+        </div>
+      `).join('') || '<p style="color:var(--hint);font-size:13px">Хичээл үзээгүй</p>'}
+    </div>
+    ` : ''}
+  `));
+});
+
+router.post('/users/:id/session/:sid/delete', (req, res) => {
+  db.prepare('DELETE FROM user_sessions WHERE id=? AND user_id=?').run(req.params.sid, req.params.id);
+  res.redirect('/admin/users/' + req.params.id);
+});
+
+router.post('/users/:id/sessions/clear', (req, res) => {
+  db.prepare('DELETE FROM user_sessions WHERE user_id=?').run(req.params.id);
+  res.redirect('/admin/users/' + req.params.id);
 });
 
 // ─── Categories ───────────────────────────────────────────────────
@@ -684,19 +774,20 @@ function homeCatForm(c, defaultOrder) {
 
 // ─── Admin Chat Inbox ────────────────────────────────────────────
 router.get('/chat', (req, res) => {
-  // Бүх хэрэглэгчдийг, тус бүрийн сүүлийн мессежтэй нь жагсаах
+  // Бүх сурагчдын thread — target_id = сурагчийн ID
   const users = db.prepare(`
     SELECT u.id, u.name, u.email,
-      (SELECT content FROM chat_messages WHERE (user_id=u.id AND target_id=?) OR (user_id=? AND target_id=u.id) ORDER BY created_at DESC LIMIT 1) as last_msg,
-      (SELECT created_at FROM chat_messages WHERE (user_id=u.id AND target_id=?) OR (user_id=? AND target_id=u.id) ORDER BY created_at DESC LIMIT 1) as last_time,
-      (SELECT COUNT(*) FROM chat_messages WHERE user_id=u.id AND target_id=? AND is_read=0) as unread_count
+      (SELECT content FROM chat_messages WHERE target_id=u.id OR (user_id=u.id AND target_id IN (SELECT id FROM users WHERE role='admin')) ORDER BY created_at DESC LIMIT 1) as last_msg,
+      (SELECT created_at FROM chat_messages WHERE target_id=u.id OR (user_id=u.id AND target_id IN (SELECT id FROM users WHERE role='admin')) ORDER BY created_at DESC LIMIT 1) as last_time,
+      (SELECT COUNT(*) FROM chat_messages WHERE user_id=u.id AND target_id=u.id AND is_read=0) as unread_count
     FROM users u
     WHERE u.role='student'
     ORDER BY last_time DESC NULLS LAST
-  `).all(req.session.userId, req.session.userId, req.session.userId, req.session.userId, req.session.userId);
+  `).all();
 
   res.send(adminLayout('Чат Inbox', `
     <h2 style="margin-bottom:1.25rem">💬 Чат Inbox (${users.length} сурагч)</h2>
+    <p style="color:var(--hint);font-size:12px;margin-bottom:1rem">Бүх админ нэг thread-д хариулна. Сурагч хэн хариулсныг харна.</p>
     <div class="chat-inbox">
       ${users.map(u => `
         <a href="/admin/chat/${u.id}" class="inbox-item ${u.unread_count > 0 ? 'unread' : ''}">
@@ -717,27 +808,32 @@ router.get('/chat', (req, res) => {
 });
 
 router.get('/chat/:userId', (req, res) => {
-  const user = db.prepare("SELECT id, name, email FROM users WHERE id=? AND role='student'").get(req.params.userId);
+  const user = db.prepare("SELECT id, name, email, avatar FROM users WHERE id=? AND role='student'").get(req.params.userId);
   if (!user) return res.redirect('/admin/chat');
 
+  // Thread — target_id = сурагчийн ID, илгээгч: сурагч өөрөө ЭСВЭЛ аль нэг админ
   const messages = db.prepare(`
-    SELECT m.*, u.name as user_name, u.role as user_role
+    SELECT m.*, u.name as user_name, u.role as user_role, u.avatar as user_avatar
     FROM chat_messages m
     JOIN users u ON m.user_id = u.id
-    WHERE (m.user_id=? AND m.target_id=?) OR (m.user_id=? AND m.target_id=?)
+    WHERE m.target_id=? OR (m.user_id=? AND m.target_id IN (SELECT id FROM users WHERE role='admin'))
     ORDER BY m.created_at ASC
-  `).all(user.id, req.session.userId, req.session.userId, user.id);
+  `).all(user.id, user.id);
 
-  // Mark as read
-  db.prepare('UPDATE chat_messages SET is_read=1 WHERE user_id=? AND target_id=?').run(user.id, req.session.userId);
+  // Mark as read (сурагчаас ирсэн мессежүүдийг)
+  db.prepare('UPDATE chat_messages SET is_read=1 WHERE user_id=? AND target_id=?').run(user.id, user.id);
 
   const msgHtml = messages.map(m => {
-    const isOwn = m.user_id === req.session.userId; // admin нь "own"
+    const isOwn = m.user_id === req.session.userId; // миний өөрийн админ мессеж
+    const initials = (m.user_name||'?').charAt(0).toUpperCase();
+    const avatarHtml = m.user_avatar
+      ? `<img src="${m.user_avatar}" class="chat-avatar-img">`
+      : `<div class="chat-avatar ${m.user_role === 'admin' ? 'avatar-admin' : ''}">${initials}</div>`;
     return `
       <div class="chat-msg ${isOwn ? 'own' : ''}" data-id="${m.id}">
-        ${!isOwn ? `<div class="chat-avatar">${user.name.charAt(0).toUpperCase()}</div>` : ''}
-        <div class="chat-bubble ${isOwn ? 'own' : ''}">
-          ${!isOwn ? `<div class="chat-name">${user.name}</div>` : ''}
+        ${!isOwn ? avatarHtml : ''}
+        <div class="chat-bubble ${isOwn ? 'own' : (m.user_role === 'admin' ? 'admin' : '')}">
+          ${!isOwn ? `<div class="chat-name">${m.user_name}${m.user_role === 'admin' ? ' <span class="admin-tag">ADMIN</span>' : ''}</div>` : ''}
           ${m.content ? `<div class="chat-text">${escHtmlAdmin(m.content).replace(/\n/g,'<br>')}</div>` : ''}
           ${m.image ? `<a href="${m.image}" target="_blank"><img src="${m.image}" class="chat-img"></a>` : ''}
           ${m.video ? `<video src="${m.video}" controls class="chat-video"></video>` : ''}
@@ -752,11 +848,14 @@ router.get('/chat/:userId', (req, res) => {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
       <div>
         <a href="/admin/chat" style="color:var(--purple-l);font-size:13px;text-decoration:none">← Inbox</a>
-        <h2 style="margin-top:4px">${user.name}</h2>
+        <h2 style="margin-top:4px;display:flex;align-items:center;gap:10px">
+          ${user.avatar ? `<img src="${user.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover">` : `<span class="inbox-avatar">${user.name.charAt(0).toUpperCase()}</span>`}
+          ${user.name}
+        </h2>
         <p style="color:var(--hint);font-size:12px">${user.email}</p>
       </div>
     </div>
-    <div class="chat-wrap" style="max-width:760px;margin:0;height:calc(100vh - 240px);border:1px solid var(--border);border-radius:14px;padding:0 1rem">
+    <div class="chat-wrap" style="max-width:760px;margin:0;height:calc(100vh - 260px);border:1px solid var(--border);border-radius:14px;padding:0 1rem">
       <div class="chat-messages" id="chatMsgs">
         ${msgHtml || '<p class="no-msg">Чат хоосон байна</p>'}
       </div>
@@ -775,7 +874,10 @@ router.get('/chat/:userId', (req, res) => {
       let lastId = ${lastId};
       const adminId = ${req.session.userId};
       const userId = ${user.id};
-      const userName = ${JSON.stringify(user.name)};
+
+      function esc(s) {
+        return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\n/g,'<br>');
+      }
 
       async function checkNew() {
         try {
@@ -792,13 +894,17 @@ router.get('/chat/:userId', (req, res) => {
       }
       function renderMsg(m) {
         const isOwn = m.user_id === adminId;
+        const isAdmin = m.user_role === 'admin';
+        const initial = (m.user_name||'?').charAt(0).toUpperCase();
         const time = new Date(m.created_at).toLocaleTimeString('mn-MN',{hour:'2-digit',minute:'2-digit'});
-        const content = (m.content||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\n/g,'<br>');
+        const avatarHtml = m.user_avatar
+          ? '<img src="' + m.user_avatar + '" class="chat-avatar-img">'
+          : '<div class="chat-avatar ' + (isAdmin?'avatar-admin':'') + '">' + initial + '</div>';
         return '<div class="chat-msg ' + (isOwn?'own':'') + '">' +
-          (!isOwn ? '<div class="chat-avatar">' + userName.charAt(0).toUpperCase() + '</div>' : '') +
-          '<div class="chat-bubble ' + (isOwn?'own':'') + '">' +
-            (!isOwn ? '<div class="chat-name">' + userName + '</div>' : '') +
-            (m.content ? '<div class="chat-text">' + content + '</div>' : '') +
+          (!isOwn ? avatarHtml : '') +
+          '<div class="chat-bubble ' + (isOwn?'own':(isAdmin?'admin':'')) + '">' +
+            (!isOwn ? '<div class="chat-name">' + (m.user_name||'') + (isAdmin?' <span class="admin-tag">ADMIN</span>':'') + '</div>' : '') +
+            (m.content ? '<div class="chat-text">' + esc(m.content) + '</div>' : '') +
             (m.image ? '<a href="' + m.image + '" target="_blank"><img src="' + m.image + '" class="chat-img"></a>' : '') +
             (m.video ? '<video src="' + m.video + '" controls class="chat-video"></video>' : '') +
             '<div class="chat-time">' + time + '</div>' +
@@ -837,6 +943,7 @@ router.post('/chat/:userId', uploadChatAdmin.single('media'), (req, res) => {
     if (req.file.mimetype.startsWith('image/')) image = url;
     else video = url;
   }
+  // Илгээгч = энэ админ, target = сурагчийн ID (thread identifier)
   db.prepare('INSERT INTO chat_messages (user_id, target_id, content, image, video) VALUES (?,?,?,?,?)')
     .run(req.session.userId, userId, content?.trim() || '', image, video);
   res.redirect('/admin/chat/' + userId);
@@ -846,12 +953,12 @@ router.get('/chat/:userId/poll', (req, res) => {
   const userId = parseInt(req.params.userId);
   const since = parseInt(req.query.since) || 0;
   const messages = db.prepare(`
-    SELECT m.*, u.name as user_name, u.role as user_role
+    SELECT m.*, u.name as user_name, u.role as user_role, u.avatar as user_avatar
     FROM chat_messages m
     JOIN users u ON m.user_id = u.id
-    WHERE ((m.user_id=? AND m.target_id=?) OR (m.user_id=? AND m.target_id=?)) AND m.id > ?
+    WHERE (m.target_id=? OR (m.user_id=? AND m.target_id IN (SELECT id FROM users WHERE role='admin'))) AND m.id > ?
     ORDER BY m.created_at ASC
-  `).all(userId, req.session.userId, req.session.userId, userId, since);
+  `).all(userId, userId, since);
   res.json(messages);
 });
 

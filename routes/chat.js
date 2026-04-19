@@ -31,30 +31,26 @@ function getAdmin() {
   return db.prepare("SELECT id, name FROM users WHERE role='admin' LIMIT 1").get();
 }
 
-// GET /chat — хэрэглэгч admin руу бичих
+// GET /chat — хэрэглэгч бүх админтай group chat
 router.get('/', requireAuth, (req, res) => {
   if (req.session.role === 'admin') return res.redirect('/admin/chat');
 
-  const admin = getAdmin();
-  if (!admin) return res.send('Админ олдсонгүй.');
-
-  // user болон admin хоорондох бүх мессеж
+  // Энэ сурагчийн chat thread — target_id = сурагчийн ID
+  // Илгээгч: сурагч өөрөө ЭСВЭЛ аль нэг админ
   const messages = db.prepare(`
-    SELECT m.*, u.name as user_name, u.role as user_role
+    SELECT m.*, u.name as user_name, u.role as user_role, u.avatar as user_avatar
     FROM chat_messages m
     JOIN users u ON m.user_id = u.id
-    WHERE (m.user_id=? AND m.target_id=?) OR (m.user_id=? AND m.target_id=?)
+    WHERE m.target_id=? OR (m.user_id=? AND m.target_id IN (SELECT id FROM users WHERE role='admin'))
     ORDER BY m.created_at ASC
-  `).all(req.session.userId, admin.id, admin.id, req.session.userId);
+  `).all(req.session.userId, req.session.userId);
 
-  res.send(renderUserChat(messages, req.session, admin));
+  res.send(renderUserChat(messages, req.session));
 });
 
-// POST /chat — хэрэглэгч мессеж илгээх (target = admin)
+// POST /chat — хэрэглэгч мессеж илгээх (target = сурагчийн өөрийнх нь ID — thread identifier)
 router.post('/', requireAuth, uploadChat.single('media'), (req, res) => {
   if (req.session.role === 'admin') return res.redirect('/admin/chat');
-  const admin = getAdmin();
-  if (!admin) return res.redirect('/chat');
 
   const { content } = req.body;
   if (!content?.trim() && !req.file) return res.redirect('/chat');
@@ -64,28 +60,28 @@ router.post('/', requireAuth, uploadChat.single('media'), (req, res) => {
     if (req.file.mimetype.startsWith('image/')) image = url;
     else video = url;
   }
+  // target_id = сурагчийн ID (thread identifier)
   db.prepare('INSERT INTO chat_messages (user_id, target_id, content, image, video) VALUES (?,?,?,?,?)')
-    .run(req.session.userId, admin.id, content?.trim() || '', image, video);
+    .run(req.session.userId, req.session.userId, content?.trim() || '', image, video);
 
-  // Admin-д мэдэгдэл
+  // Бүх админд мэдэгдэл
   db.prepare('INSERT INTO notifications (type, message, related_id) VALUES (?,?,?)')
     .run('chat', `Шинэ чат: <b>${req.session.userName}</b> — "${(content||'').trim().substring(0,80)}"`, req.session.userId);
 
   res.redirect('/chat');
 });
 
-// GET /chat/messages — live polling (хэрэглэгчийн)
+// GET /chat/messages — live polling
 router.get('/messages', requireAuth, (req, res) => {
-  const admin = getAdmin();
   const since = parseInt(req.query.since) || 0;
   const messages = db.prepare(`
-    SELECT m.*, u.name as user_name, u.role as user_role
+    SELECT m.*, u.name as user_name, u.role as user_role, u.avatar as user_avatar
     FROM chat_messages m
     JOIN users u ON m.user_id = u.id
-    WHERE ((m.user_id=? AND m.target_id=?) OR (m.user_id=? AND m.target_id=?)) AND m.id > ?
+    WHERE (m.target_id=? OR (m.user_id=? AND m.target_id IN (SELECT id FROM users WHERE role='admin'))) AND m.id > ?
     ORDER BY m.created_at ASC
     LIMIT 50
-  `).all(req.session.userId, admin.id, admin.id, req.session.userId, since);
+  `).all(req.session.userId, req.session.userId, since);
   res.json(messages);
 });
 
@@ -93,14 +89,18 @@ function escHtml(s) {
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-function renderUserChat(messages, session, admin) {
+function renderUserChat(messages, session) {
   const msgHtml = messages.map(m => {
     const isOwn = m.user_id === session.userId;
+    const initials = (m.user_name || '?').charAt(0).toUpperCase();
+    const avatarHtml = m.user_avatar
+      ? `<img src="${m.user_avatar}" class="chat-avatar-img">`
+      : `<div class="chat-avatar ${m.user_role === 'admin' ? 'avatar-admin' : ''}">${initials}</div>`;
     return `
       <div class="chat-msg ${isOwn ? 'own' : ''}" data-id="${m.id}">
-        ${!isOwn ? `<div class="chat-avatar avatar-admin">A</div>` : ''}
-        <div class="chat-bubble ${isOwn ? 'own' : 'admin'}">
-          ${!isOwn ? `<div class="chat-name">Админ <span class="admin-tag">ADMIN</span></div>` : ''}
+        ${!isOwn ? avatarHtml : ''}
+        <div class="chat-bubble ${isOwn ? 'own' : (m.user_role === 'admin' ? 'admin' : '')}">
+          ${!isOwn ? `<div class="chat-name">${escHtml(m.user_name)}${m.user_role === 'admin' ? ' <span class="admin-tag">ADMIN</span>' : ''}</div>` : ''}
           ${m.content ? `<div class="chat-text">${escHtml(m.content).replace(/\n/g,'<br>')}</div>` : ''}
           ${m.image ? `<a href="${m.image}" target="_blank"><img src="${m.image}" class="chat-img"></a>` : ''}
           ${m.video ? `<video src="${m.video}" controls class="chat-video"></video>` : ''}
@@ -123,7 +123,10 @@ function renderUserChat(messages, session, admin) {
     <div class="nav-links">
       <a href="/lessons" class="nav-link">Хичээлүүд</a>
       <a href="/chat" class="nav-link" style="color:var(--purple-l)">💬 Админтай чатлах</a>
-      <span class="nav-user">${session.userName || ''}</span>
+      <a href="/profile" class="nav-link nav-profile">
+        ${session.avatar ? `<img src="${session.avatar}" class="nav-avatar">` : `<span class="nav-avatar-init">${(session.userName||'?').charAt(0).toUpperCase()}</span>`}
+        ${session.userName || ''}
+      </a>
       <a href="/logout" class="nav-logout">Гарах</a>
     </div>
   </nav>
@@ -131,7 +134,7 @@ function renderUserChat(messages, session, admin) {
   <div class="chat-wrap">
     <div class="chat-header">
       <h1 class="chat-h">💬 Админтай чатлах</h1>
-      <p class="chat-sub">Асуулт, санал гомдол байвал энд бичээрэй</p>
+      <p class="chat-sub">Манай админ баг таны асуултад хариулна</p>
     </div>
     <div class="chat-messages" id="chatMsgs">
       ${msgHtml || '<p class="no-msg">Админд анхны мессежээ илгээнэ үү!</p>'}
@@ -170,15 +173,23 @@ function renderUserChat(messages, session, admin) {
       } catch(e) {}
     }
 
+    function esc(s) {
+      return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\n/g,'<br>');
+    }
+
     function renderMsg(m) {
       const isOwn = m.user_id === currentUserId;
+      const isAdmin = m.user_role === 'admin';
+      const initial = (m.user_name||'?').charAt(0).toUpperCase();
       const time = new Date(m.created_at).toLocaleTimeString('mn-MN',{hour:'2-digit',minute:'2-digit'});
-      const content = (m.content||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\n/g,'<br>');
+      const avatarHtml = m.user_avatar
+        ? '<img src="' + m.user_avatar + '" class="chat-avatar-img">'
+        : '<div class="chat-avatar ' + (isAdmin?'avatar-admin':'') + '">' + initial + '</div>';
       return '<div class="chat-msg ' + (isOwn?'own':'') + '">' +
-        (!isOwn ? '<div class="chat-avatar avatar-admin">A</div>' : '') +
-        '<div class="chat-bubble ' + (isOwn?'own':'admin') + '">' +
-          (!isOwn ? '<div class="chat-name">Админ <span class="admin-tag">ADMIN</span></div>' : '') +
-          (m.content ? '<div class="chat-text">' + content + '</div>' : '') +
+        (!isOwn ? avatarHtml : '') +
+        '<div class="chat-bubble ' + (isOwn?'own':(isAdmin?'admin':'')) + '">' +
+          (!isOwn ? '<div class="chat-name">' + (m.user_name||'') + (isAdmin?' <span class="admin-tag">ADMIN</span>':'') + '</div>' : '') +
+          (m.content ? '<div class="chat-text">' + esc(m.content) + '</div>' : '') +
           (m.image ? '<a href="' + m.image + '" target="_blank"><img src="' + m.image + '" class="chat-img"></a>' : '') +
           (m.video ? '<video src="' + m.video + '" controls class="chat-video"></video>' : '') +
           '<div class="chat-time">' + time + '</div>' +

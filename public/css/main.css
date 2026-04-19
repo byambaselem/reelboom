@@ -328,3 +328,6 @@ code{font-family:var(--mono);font-size:12px;background:var(--bg3);padding:2px 6p
 .nav-profile{display:flex;align-items:center;gap:8px;text-decoration:none}
 .nav-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--purple-bdr)}
 .nav-avatar-init{width:28px;height:28px;border-radius:50%;background:var(--purple-dim);border:1px solid var(--purple-bdr);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--purple-l)}
+
+/* Chat avatar img */
+.chat-avatar-img{width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border)}
