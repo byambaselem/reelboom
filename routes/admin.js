@@ -121,7 +121,7 @@ router.get('/', (req, res) => {
         </div>
       </div>
       <div class="dash-stat">
-        <div class="dash-stat-icon">👁️</div>
+        <div class="dash-stat-icon">📊</div>
         <div>
           <div class="dash-stat-n">${todayVisits}</div>
           <div class="dash-stat-l">Өнөөдрийн хандалт</div>
@@ -224,8 +224,8 @@ router.get('/', (req, res) => {
     </div>
 
     <script>
-      // 30 секунд тутам автомат шинэчлэгдэнэ
-      setTimeout(() => location.reload(), 30000);
+      // 60 секунд тутам автомат шинэчлэгдэнэ
+      setTimeout(() => location.reload(), 60000);
     </script>
   `));
 });
