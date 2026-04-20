@@ -123,6 +123,17 @@ db.exec(`
     last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
+
+  CREATE TABLE IF NOT EXISTS page_visits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip TEXT,
+    path TEXT,
+    user_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_visits_date ON page_visits(created_at);
+  CREATE INDEX IF NOT EXISTS idx_sessions_lastseen ON user_sessions(last_seen);
 `);
 
 const migrations = [

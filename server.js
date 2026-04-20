@@ -34,6 +34,25 @@ app.use(session({
 
 app.use(optionalAuth);
 
+// Хандалт бүртгэх middleware
+app.use((req, res, next) => {
+  // Зөвхөн GET хуудас бүртгэнэ, upload/API биш
+  if (req.method === 'GET' && !req.path.startsWith('/uploads') && !req.path.startsWith('/css') && !req.path.startsWith('/js') && !req.path.includes('/poll') && !req.path.includes('/messages') && !req.path.startsWith('/video-')) {
+    const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim();
+    try {
+      db.prepare('INSERT INTO page_visits (ip, path, user_id) VALUES (?,?,?)')
+        .run(ip, req.path.substring(0, 200), req.session.userId || null);
+    } catch(e) {}
+    // Session heartbeat — сүүлд хэзээ үйлдэл хийсэнийг бүртгэнэ
+    if (req.session.userId && req.sessionID) {
+      try {
+        db.prepare('UPDATE user_sessions SET last_seen=CURRENT_TIMESTAMP WHERE session_id=?').run(req.sessionID);
+      } catch(e) {}
+    }
+  }
+  next();
+});
+
 // Routes
 app.use('/', require('./routes/auth'));
 app.use('/profile', require('./routes/profile'));
@@ -78,6 +97,7 @@ app.get('/', (req, res) => {
   const s = {};
   settingsRaw.forEach(r => s[r.key] = r.value);
   const homeCats = db.prepare('SELECT * FROM homepage_categories ORDER BY sort_order').all();
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.send(renderHomepage(freeLessons, s, homeCats));
 });
 

@@ -34,8 +34,12 @@ router.use(requireAdmin);
 
 // Одоогийн request-ын unread count-г хадгалах (adminLayout-д ашиглана)
 let _currentUnread = 0;
+let _currentUnreadComments = 0;
 router.use((req, res, next) => {
   _currentUnread = req.session.unreadChat || 0;
+  try {
+    _currentUnreadComments = db.prepare(`SELECT COUNT(*) as c FROM notifications WHERE type='comment' AND is_read=0`).get().c;
+  } catch(e) { _currentUnreadComments = 0; }
   next();
 });
 
@@ -44,6 +48,53 @@ router.get('/', (req, res) => {
   const users = db.prepare('SELECT COUNT(*) as c FROM users WHERE role!=?').get('admin').c;
   const comments = db.prepare('SELECT COUNT(*) as c FROM comments').get().c;
   const notifs = db.prepare('SELECT COUNT(*) as c FROM notifications WHERE is_read=0').get().c;
+
+  // Онлайн хэрэглэгчид — сүүлийн 5 минутад идэвхтэй
+  const onlineCount = db.prepare(`
+    SELECT COUNT(DISTINCT user_id) as c FROM user_sessions
+    WHERE last_seen > datetime('now','-5 minutes')
+  `).get().c;
+
+  const onlineUsers = db.prepare(`
+    SELECT DISTINCT u.id, u.name, u.avatar, u.role
+    FROM user_sessions s JOIN users u ON s.user_id = u.id
+    WHERE s.last_seen > datetime('now','-5 minutes')
+    ORDER BY s.last_seen DESC
+    LIMIT 20
+  `).all();
+
+  const totalVisits = db.prepare('SELECT COUNT(*) as c FROM page_visits').get().c;
+  const todayVisits = db.prepare(`SELECT COUNT(*) as c FROM page_visits WHERE date(created_at) = date('now')`).get().c;
+  const monthVisits = db.prepare(`SELECT COUNT(*) as c FROM page_visits WHERE created_at > datetime('now','-30 days')`).get().c;
+  const todayUnique = db.prepare(`SELECT COUNT(DISTINCT ip) as c FROM page_visits WHERE date(created_at) = date('now')`).get().c;
+
+  const unreadComments = db.prepare(`SELECT COUNT(*) as c FROM notifications WHERE type='comment' AND is_read=0`).get().c;
+
+  // Долоо хоногийн график
+  const weekData = db.prepare(`
+    SELECT date(created_at) as day, COUNT(*) as c
+    FROM page_visits
+    WHERE created_at > datetime('now','-7 days')
+    GROUP BY date(created_at)
+  `).all();
+  const maxVisit = Math.max(1, ...weekData.map(d => d.c));
+  const last7days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dayStr = d.toISOString().slice(0,10);
+    const found = weekData.find(x => x.day === dayStr);
+    last7days.push({ day: dayStr, c: found ? found.c : 0, label: ['Ня','Да','Мя','Лх','Пү','Ба','Бя'][d.getDay()] });
+  }
+  const chartBars = last7days.map(d => {
+    const h = Math.max(4, (d.c / maxVisit) * 80);
+    return `<div class="chart-bar-wrap" title="${d.day}: ${d.c} хандалт">
+      <div class="chart-bar-val">${d.c}</div>
+      <div class="chart-bar" style="height:${h}px"></div>
+      <div class="chart-bar-label">${d.label}</div>
+    </div>`;
+  }).join('');
+
   const recentComments = db.prepare(`
     SELECT cm.*, u.name as user_name, l.title as lesson_title
     FROM comments cm JOIN users u ON cm.user_id=u.id JOIN lessons l ON cm.lesson_id=l.id
@@ -52,11 +103,90 @@ router.get('/', (req, res) => {
   const notifications = db.prepare('SELECT * FROM notifications ORDER BY created_at DESC LIMIT 20').all();
 
   res.send(adminLayout('Dashboard', `
-    <div class="admin-stats">
-      <div class="astat"><div class="astat-n">${users}</div><div class="astat-l">Нийт сурагч</div></div>
-      <div class="astat"><div class="astat-n">${comments}</div><div class="astat-l">Нийт коммент</div></div>
-      <div class="astat"><div class="astat-n">${notifs}</div><div class="astat-l">Уншаагүй мэдэгдэл</div></div>
+    <h2 style="margin-bottom:1.25rem;color:#fff">📊 Статистик</h2>
+
+    <div class="dash-stats-grid">
+      <div class="dash-stat online-stat">
+        <div class="dash-stat-icon">🟢</div>
+        <div>
+          <div class="dash-stat-n">${onlineCount}</div>
+          <div class="dash-stat-l">Яг одоо онлайн</div>
+        </div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat-icon">👥</div>
+        <div>
+          <div class="dash-stat-n">${users}</div>
+          <div class="dash-stat-l">Нийт сурагч</div>
+        </div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat-icon">👁️</div>
+        <div>
+          <div class="dash-stat-n">${todayVisits}</div>
+          <div class="dash-stat-l">Өнөөдрийн хандалт</div>
+        </div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat-icon">🎯</div>
+        <div>
+          <div class="dash-stat-n">${todayUnique}</div>
+          <div class="dash-stat-l">Уникаль өнөөдөр</div>
+        </div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat-icon">📅</div>
+        <div>
+          <div class="dash-stat-n">${monthVisits}</div>
+          <div class="dash-stat-l">30 хоногийн хандалт</div>
+        </div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat-icon">📈</div>
+        <div>
+          <div class="dash-stat-n">${totalVisits}</div>
+          <div class="dash-stat-l">Нийт хандалт</div>
+        </div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat-icon">💬</div>
+        <div>
+          <div class="dash-stat-n">${comments}</div>
+          <div class="dash-stat-l">Нийт коммент</div>
+        </div>
+      </div>
+      <div class="dash-stat ${unreadComments > 0 ? 'alert-stat' : ''}">
+        <div class="dash-stat-icon">🔔</div>
+        <div>
+          <div class="dash-stat-n">${unreadComments}</div>
+          <div class="dash-stat-l">Уншаагүй коммент</div>
+        </div>
+      </div>
     </div>
+
+    <div class="admin-card" style="margin:1rem 0">
+      <h3 style="color:#fff;margin-bottom:1.25rem">📊 Сүүлийн 7 хоногийн хандалт</h3>
+      <div class="chart-7day">${chartBars}</div>
+    </div>
+
+    ${onlineUsers.length > 0 ? `
+    <div class="admin-card" style="margin-bottom:1rem">
+      <h3 style="color:#fff;margin-bottom:1rem">🟢 Одоо онлайн (${onlineUsers.length})</h3>
+      <div class="online-list">
+        ${onlineUsers.map(u => `
+          <a href="/admin/users/${u.id}" class="online-item">
+            ${u.avatar
+              ? `<img src="${u.avatar}" class="online-avatar">`
+              : `<div class="online-avatar-init">${u.name.charAt(0).toUpperCase()}</div>`
+            }
+            <div>
+              <div style="color:#fff;font-size:13px;font-weight:600">${u.name}${u.role==='admin'?' <span class="admin-tag">ADMIN</span>':''}</div>
+              <div style="color:#10b981;font-size:10px;font-family:var(--mono)">● online</div>
+            </div>
+          </a>
+        `).join('')}
+      </div>
+    </div>` : ''}
 
     <div class="admin-grid">
       <div class="admin-card">
@@ -93,15 +223,11 @@ router.get('/', (req, res) => {
       </div>
     </div>
 
-    <div class="admin-nav-links">
-      <a href="/admin/users" class="admin-link-btn">👥 Сурагчид</a>
-      <a href="/admin/codes" class="admin-link-btn">🔑 Нэвтрэх кодууд</a>
-      <a href="/admin/categories" class="admin-link-btn">📂 Бүлгүүд</a>
-      <a href="/admin/lessons" class="admin-link-btn">📚 Хичээлүүд</a>
-    </div>
+    <script>
+      // 30 секунд тутам автомат шинэчлэгдэнэ
+      setTimeout(() => location.reload(), 30000);
+    </script>
   `));
-  // Mark all as read
-  db.prepare('UPDATE notifications SET is_read=1').run();
 });
 
 // ─── Users ───────────────────────────────────────────────────────
@@ -998,6 +1124,10 @@ router.get('/comments', (req, res) => {
     LIMIT 100
   `).all();
 
+  // Уншаагүй коммент notification-уудыг уншигдсан гэж тэмдэглэх
+  db.prepare(`UPDATE notifications SET is_read=1 WHERE type='comment' AND is_read=0`).run();
+  _currentUnreadComments = 0;
+
   res.send(adminLayout('Коммент удирдах', `
     <h2 style="margin-bottom:1.25rem">💬 Коммент удирдах (${comments.length})</h2>
     <div class="admin-comments-list">
@@ -1104,6 +1234,7 @@ function lessonForm(l, cats) {
 
 function adminLayout(title, body) {
   const unread = _currentUnread;
+  const unreadComm = _currentUnreadComments;
   return `<!DOCTYPE html><html lang="mn"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${title} — Admin</title>
@@ -1121,7 +1252,7 @@ function adminLayout(title, body) {
       <a href="/admin/categories" class="nav-link">Бүлгүүд</a>
       <a href="/admin/lessons" class="nav-link">Хичээл</a>
       <a href="/admin/homepage" class="nav-link">Нүүр бүлэг</a>
-      <a href="/admin/comments" class="nav-link">Коммент</a>
+      <a href="/admin/comments" class="nav-link" style="position:relative">Коммент${unreadComm > 0 ? `<span class="nav-badge">${unreadComm}</span>` : ''}</a>
       <a href="/admin/chat" class="nav-link" style="position:relative">💬 Inbox${unread > 0 ? `<span class="nav-badge">${unread}</span>` : ''}</a>
       <a href="/admin/settings" class="nav-link">⚙ Тохиргоо</a>
       <a href="/profile" class="nav-link" style="color:var(--purple-l)">👤 Профайл</a>

@@ -337,3 +337,30 @@ code{font-family:var(--mono);font-size:12px;background:var(--bg3);padding:2px 6p
 
 /* Category thumbnail in lessons page */
 .cat-sec-thumb{width:42px;height:42px;border-radius:12px;object-fit:cover;flex-shrink:0;border:1px solid var(--border)}
+
+/* Dashboard statistics */
+.dash-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:1rem}
+.dash-stat{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1rem 1.25rem;display:flex;align-items:center;gap:14px;transition:border-color .15s}
+.dash-stat:hover{border-color:var(--purple-bdr)}
+.dash-stat.online-stat{border-color:rgba(16,185,129,0.4);background:rgba(16,185,129,0.05)}
+.dash-stat.online-stat .dash-stat-n{color:#10b981}
+.dash-stat.alert-stat{border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.05)}
+.dash-stat.alert-stat .dash-stat-n{color:#ef4444}
+.dash-stat-icon{font-size:28px;flex-shrink:0}
+.dash-stat-n{font-size:1.75rem;font-weight:800;color:#fff;line-height:1;letter-spacing:-0.5px}
+.dash-stat-l{font-size:11px;color:var(--hint);font-family:var(--mono);letter-spacing:.3px;text-transform:uppercase;margin-top:4px}
+
+/* 7-day chart */
+.chart-7day{display:flex;gap:10px;align-items:flex-end;height:120px;padding:10px 0;justify-content:space-between}
+.chart-bar-wrap{display:flex;flex-direction:column;align-items:center;flex:1;gap:4px;position:relative;cursor:pointer}
+.chart-bar-val{font-size:10px;color:var(--muted);font-family:var(--mono);font-weight:700}
+.chart-bar{width:100%;max-width:40px;background:linear-gradient(180deg,var(--purple) 0%,var(--purple-l) 100%);border-radius:6px 6px 0 0;min-height:4px;transition:.2s}
+.chart-bar-wrap:hover .chart-bar{background:linear-gradient(180deg,var(--purple-l) 0%,var(--green) 100%)}
+.chart-bar-label{font-size:10px;color:var(--hint);font-family:var(--mono)}
+
+/* Online users list */
+.online-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.online-item{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:8px;text-decoration:none;transition:.15s}
+.online-item:hover{border-color:rgba(16,185,129,0.4);background:rgba(16,185,129,0.05)}
+.online-avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid #10b981}
+.online-avatar-init{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#10b981);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;border:2px solid #10b981}
