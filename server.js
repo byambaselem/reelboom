@@ -112,6 +112,19 @@ app.get('/video-src/:token', (req, res) => {
 });
 
 // Homepage
+// Homepage
+app.get('/__debug__', (req, res) => {
+  const homeCats = db.prepare('SELECT * FROM homepage_categories ORDER BY sort_order').all();
+  const settings = db.prepare('SELECT key, value FROM site_settings').all();
+  const dbPath = require('path').join(process.env.DATA_DIR || __dirname, 'reelboom.db');
+  res.json({
+    DATA_DIR: process.env.DATA_DIR || 'NOT SET',
+    dbPath,
+    homeCats,
+    settings
+  });
+});
+
 app.get('/', (req, res) => {
   if (req.session.userId) return res.redirect('/lessons');
   const freeLessons = db.prepare('SELECT * FROM lessons WHERE is_free=1 ORDER BY lesson_num LIMIT 2').all();
@@ -206,10 +219,27 @@ function renderHomepage(freeLessons, s = {}, homeCats = []) {
       </div>
     </div>
     <div class="tool-pills">
-      <div class="tp"><div class="tp-icon" style="background:rgba(139,92,246,.2)">📱</div><div style="flex:1"><div class="tp-name">iPhone бичлэг</div><div class="tp-sub">Камерын тохиргоо, cinematic техник</div></div><span class="tp-tag">1–4 хичээл</span></div>
-      <div class="tp"><div class="tp-icon" style="background:rgba(16,185,129,.15)">✂️</div><div style="flex:1"><div class="tp-name">CapCut засвар</div><div class="tp-sub">Монтаж, transition, AI засвар</div></div><span class="tp-tag">12–22 хичээл</span></div>
-      <div class="tp"><div class="tp-icon" style="background:rgba(59,130,246,.15)">🎨</div><div style="flex:1"><div class="tp-name">Freepik AI</div><div class="tp-sub">Зураг үүсгэх, орчин солих</div></div><span class="tp-tag">19–20 хичээл</span></div>
-      <div class="tp"><div class="tp-icon" style="background:rgba(245,158,11,.15)">📈</div><div style="flex:1"><div class="tp-name">Стратеги & өсөлт</div><div class="tp-sub">Алгоритм, брэнд, монетизаци</div></div><span class="tp-tag">23–32 хичээл</span></div>
+      ${homeCats.length > 0 ? homeCats.map((hc, i) => {
+        const bgColors = ['rgba(139,92,246,.2)', 'rgba(16,185,129,.15)', 'rgba(59,130,246,.15)', 'rgba(245,158,11,.15)', 'rgba(236,72,153,.15)', 'rgba(244,63,94,.15)'];
+        const bg = bgColors[i % bgColors.length];
+        const iconHtml = hc.thumbnail
+          ? `<img src="${hc.thumbnail}" class="tp-icon-img">`
+          : `<div class="tp-icon" style="background:${bg}">${hc.icon || '📚'}</div>`;
+        return `
+        <div class="tp">
+          ${iconHtml}
+          <div style="flex:1">
+            <div class="tp-name">${hc.title}</div>
+            <div class="tp-sub">${hc.subtitle || ''}</div>
+          </div>
+          ${hc.lesson_range ? `<span class="tp-tag">${hc.lesson_range}</span>` : ''}
+        </div>`;
+      }).join('') : `
+        <div class="tp"><div class="tp-icon" style="background:rgba(139,92,246,.2)">📱</div><div style="flex:1"><div class="tp-name">iPhone бичлэг</div><div class="tp-sub">Камерын тохиргоо, cinematic техник</div></div><span class="tp-tag">1–4 хичээл</span></div>
+        <div class="tp"><div class="tp-icon" style="background:rgba(16,185,129,.15)">✂️</div><div style="flex:1"><div class="tp-name">CapCut засвар</div><div class="tp-sub">Монтаж, transition, AI засвар</div></div><span class="tp-tag">12–22 хичээл</span></div>
+        <div class="tp"><div class="tp-icon" style="background:rgba(59,130,246,.15)">🎨</div><div style="flex:1"><div class="tp-name">Freepik AI</div><div class="tp-sub">Зураг үүсгэх, орчин солих</div></div><span class="tp-tag">19–20 хичээл</span></div>
+        <div class="tp"><div class="tp-icon" style="background:rgba(245,158,11,.15)">📈</div><div style="flex:1"><div class="tp-name">Стратеги & өсөлт</div><div class="tp-sub">Алгоритм, брэнд, монетизаци</div></div><span class="tp-tag">23–32 хичээл</span></div>
+      `}
     </div>
   </div>
 
