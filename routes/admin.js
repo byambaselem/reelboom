@@ -49,30 +49,33 @@ router.get('/', (req, res) => {
   const comments = db.prepare('SELECT COUNT(*) as c FROM comments').get().c;
   const notifs = db.prepare('SELECT COUNT(*) as c FROM notifications WHERE is_read=0').get().c;
 
-  // Онлайн хэрэглэгчид — сүүлийн 5 минутад идэвхтэй
+  // Онлайн хэрэглэгчид — сүүлийн 2 минутад идэвхтэй
   const onlineCount = db.prepare(`
     SELECT COUNT(DISTINCT user_id) as c FROM user_sessions
-    WHERE last_seen > datetime('now','-5 minutes')
+    WHERE last_seen > datetime('now','-2 minutes')
   `).get().c;
 
   const onlineUsers = db.prepare(`
-    SELECT DISTINCT u.id, u.name, u.avatar, u.role
+    SELECT u.id, u.name, u.avatar, u.role, MAX(s.last_seen) as last_seen
     FROM user_sessions s JOIN users u ON s.user_id = u.id
-    WHERE s.last_seen > datetime('now','-5 minutes')
-    ORDER BY s.last_seen DESC
+    WHERE s.last_seen > datetime('now','-2 minutes')
+    GROUP BY u.id
+    ORDER BY last_seen DESC
     LIMIT 20
   `).all();
 
-  const totalVisits = db.prepare('SELECT COUNT(*) as c FROM page_visits').get().c;
-  const todayVisits = db.prepare(`SELECT COUNT(*) as c FROM page_visits WHERE date(created_at) = date('now')`).get().c;
-  const monthVisits = db.prepare(`SELECT COUNT(*) as c FROM page_visits WHERE created_at > datetime('now','-30 days')`).get().c;
+  const totalVisits = db.prepare('SELECT COUNT(DISTINCT ip || date(created_at)) as c FROM page_visits').get().c;
+  // Өнөөдрийн хандалт — уникаль IP (1 хэрэглэгч = 1 тоолно)
+  const todayVisits = db.prepare(`SELECT COUNT(DISTINCT ip) as c FROM page_visits WHERE date(created_at) = date('now')`).get().c;
+  // Сарын уникаль (өдөр бүрт IP нэг удаа тоологдоно)
+  const monthVisits = db.prepare(`SELECT COUNT(DISTINCT ip || date(created_at)) as c FROM page_visits WHERE created_at > datetime('now','-30 days')`).get().c;
   const todayUnique = db.prepare(`SELECT COUNT(DISTINCT ip) as c FROM page_visits WHERE date(created_at) = date('now')`).get().c;
 
   const unreadComments = db.prepare(`SELECT COUNT(*) as c FROM notifications WHERE type='comment' AND is_read=0`).get().c;
 
-  // Долоо хоногийн график
+  // Долоо хоногийн график — өдөр бүрийн уникаль IP
   const weekData = db.prepare(`
-    SELECT date(created_at) as day, COUNT(*) as c
+    SELECT date(created_at) as day, COUNT(DISTINCT ip) as c
     FROM page_visits
     WHERE created_at > datetime('now','-7 days')
     GROUP BY date(created_at)
@@ -124,7 +127,7 @@ router.get('/', (req, res) => {
         <div class="dash-stat-icon">📊</div>
         <div>
           <div class="dash-stat-n">${todayVisits}</div>
-          <div class="dash-stat-l">Өнөөдрийн хандалт</div>
+          <div class="dash-stat-l">Өнөөдөр орсон хүн</div>
         </div>
       </div>
       <div class="dash-stat">

@@ -78,6 +78,13 @@ app.use((req, res, next) => {
 // Routes
 app.use('/', require('./routes/auth'));
 app.use('/profile', require('./routes/profile'));
+
+// Session cleanup — 24 цагийн турш идэвхгүй session-ыг устгана
+setInterval(() => {
+  try {
+    db.prepare(`DELETE FROM user_sessions WHERE last_seen < datetime('now','-1 day')`).run();
+  } catch(e) {}
+}, 10 * 60 * 1000); // 10 минут тутамд
 app.use('/lessons', require('./routes/lessons'));
 app.use('/chat', require('./routes/chat'));
 app.use('/admin', require('./routes/admin'));

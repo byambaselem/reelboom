@@ -82,6 +82,12 @@ router.post('/register', (req, res) => {
 
 // GET /logout
 router.get('/logout', (req, res) => {
+  // user_sessions хүснэгтээс энэ session-г устгах
+  if (req.sessionID) {
+    try {
+      db.prepare('DELETE FROM user_sessions WHERE session_id=?').run(req.sessionID);
+    } catch(e) {}
+  }
   req.session.destroy();
   res.redirect('/');
 });
