@@ -197,7 +197,7 @@ function renderHomepage(freeLessons, s = {}, homeCats = []) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ReeL BOOM — Reel бичлэгийн мэргэжлийн сургалт</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/main.css">
 </head>
 <body>
@@ -248,14 +248,6 @@ function renderHomepage(freeLessons, s = {}, homeCats = []) {
         <div class="tp"><div class="tp-icon" style="background:rgba(245,158,11,.15)">📈</div><div style="flex:1"><div class="tp-name">Стратеги & өсөлт</div><div class="tp-sub">Алгоритм, брэнд, монетизаци</div></div><span class="tp-tag">23–32 хичээл</span></div>
       `}
     </div>
-  </div>
-
-  <!-- Stats -->
-  <div class="landing-stats">
-    <div class="stat"><div class="stat-n">32</div><div class="stat-l">// нийт хичээл</div></div>
-    <div class="stat"><div class="stat-n">${s.stat_blocks||'8'}</div><div class="stat-l">// сэдэв блок</div></div>
-    <div class="stat"><div class="stat-n">${s.stat_hours||'~32ц'}</div><div class="stat-l">// нийт хугацаа</div></div>
-    <div class="stat"><div class="stat-n">${s.stat_access||'∞'}</div><div class="stat-l">// хандах эрх</div></div>
   </div>
 
   <!-- Free lessons -->

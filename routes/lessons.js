@@ -192,7 +192,7 @@ function renderLessons(grouped, done, session) {
               stroke-dasharray="${Math.round(2*3.14159*30)}"
               stroke-dashoffset="${Math.round(2*3.14159*30 * (1 - progress/100))}"
               stroke-linecap="round" transform="rotate(-90 36 36)"/>
-            <text x="36" y="41" text-anchor="middle" font-size="14" font-weight="700" fill="#a78bfa" font-family="Plus Jakarta Sans,sans-serif">${progress}%</text>
+            <text x="36" y="41" text-anchor="middle" font-size="14" font-weight="700" fill="#a78bfa" font-family="Montserrat,sans-serif">${progress}%</text>
           </svg>
         </div>
       </div>
@@ -334,7 +334,7 @@ function layout(title, session, body) {
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${title} — ReeL BOOM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/main.css">
 </head>
 <body>

@@ -9,7 +9,7 @@
   --danger:#ef4444;--mono:'IBM Plex Mono',monospace;
   --grad:linear-gradient(135deg,#7c3aed,#10b981);
 }
-body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;min-height:100vh}
+body{font-family:'Montserrat',sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;min-height:100vh}
 a{color:inherit;text-decoration:none}
 input,textarea,select{font-family:inherit}
 
@@ -53,7 +53,7 @@ input,textarea,select{font-family:inherit}
 .btn-submit{
   width:100%;background:var(--grad);color:#fff;font-size:15px;font-weight:700;
   border:none;padding:13px;border-radius:11px;cursor:pointer;
-  font-family:'Plus Jakarta Sans',sans-serif;margin-top:.25rem;transition:opacity .15s;
+  font-family:'Montserrat',sans-serif;margin-top:.25rem;transition:opacity .15s;
 }
 .btn-submit:hover{opacity:.88}
 .auth-footer{text-align:center;font-size:13px;color:var(--muted);margin-top:1.25rem}
@@ -72,9 +72,9 @@ input,textarea,select{font-family:inherit}
 .hero-grad{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .hero-p{font-size:15px;color:var(--muted);line-height:1.75;margin-bottom:2rem;max-width:420px}
 .hero-btns{display:flex;gap:10px;flex-wrap:wrap}
-.btn-grad{background:var(--grad);color:#fff;font-size:14px;font-weight:700;border:none;padding:12px 26px;border-radius:10px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:opacity .15s}
+.btn-grad{background:var(--grad);color:#fff;font-size:14px;font-weight:700;border:none;padding:12px 26px;border-radius:10px;cursor:pointer;font-family:'Montserrat',sans-serif;transition:opacity .15s}
 .btn-grad:hover{opacity:.88}
-.btn-outline{background:transparent;color:var(--text);font-size:14px;font-weight:500;border:1px solid var(--border2);padding:12px 22px;border-radius:10px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:.15s}
+.btn-outline{background:transparent;color:var(--text);font-size:14px;font-weight:500;border:1px solid var(--border2);padding:12px 22px;border-radius:10px;cursor:pointer;font-family:'Montserrat',sans-serif;transition:.15s}
 .btn-outline:hover{background:var(--bg3)}
 .tool-pills{display:flex;flex-direction:column;gap:9px}
 .tp{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px 16px;display:flex;align-items:center;gap:13px;transition:border-color .15s}
@@ -163,7 +163,7 @@ input,textarea,select{font-family:inherit}
 .lesson-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:1rem 0;border-top:1px solid var(--border)}
 .nav-btn{font-size:13px;color:var(--muted);background:var(--card);border:1px solid var(--border);padding:8px 14px;border-radius:8px;transition:.15s;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nav-btn:hover{border-color:var(--purple);color:var(--text)}
-.btn-done{background:var(--purple);color:#fff;font-size:13px;font-weight:700;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:.15s}
+.btn-done{background:var(--purple);color:#fff;font-size:13px;font-weight:700;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-family:'Montserrat',sans-serif;transition:.15s}
 .btn-done:hover{background:#7c3aed}
 
 /* ─── Comments ──────────────────────────────────────────────────── */
@@ -177,9 +177,9 @@ input,textarea,select{font-family:inherit}
 .comment-body{font-size:14px;color:var(--muted);line-height:1.65}
 .no-comments{font-size:13px;color:var(--hint);padding:1rem 0}
 .comment-form{margin-top:1.25rem}
-.comment-form textarea{width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:11px 14px;border-radius:10px;font-size:14px;resize:vertical;outline:none;font-family:'Plus Jakarta Sans',sans-serif}
+.comment-form textarea{width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:11px 14px;border-radius:10px;font-size:14px;resize:vertical;outline:none;font-family:'Montserrat',sans-serif}
 .comment-form textarea:focus{border-color:var(--purple)}
-.comment-form button{margin-top:8px;background:var(--purple);color:#fff;font-size:13px;font-weight:700;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif}
+.comment-form button{margin-top:8px;background:var(--purple);color:#fff;font-size:13px;font-weight:700;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-family:'Montserrat',sans-serif}
 
 /* Sidebar */
 .lesson-sidebar{padding-top:.25rem}
@@ -221,9 +221,9 @@ code{font-family:var(--mono);font-size:12px;background:var(--bg3);padding:2px 6p
 .badge-used{font-size:11px;background:rgba(239,68,68,0.1);color:#fca5a5;padding:2px 8px;border-radius:5px;font-family:var(--mono)}
 .gen-form{display:flex;gap:10px;align-items:center;margin-bottom:1.5rem}
 .gen-form input{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;outline:none}
-.btn-primary{background:var(--grad);color:#fff;font-size:13px;font-weight:700;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif}
-.btn-small{background:var(--bg3);color:var(--text);font-size:12px;border:1px solid var(--border2);padding:5px 12px;border-radius:6px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif}
-.btn-danger-sm{background:rgba(239,68,68,0.1);color:#fca5a5;font-size:12px;border:1px solid rgba(239,68,68,0.25);padding:5px 10px;border-radius:6px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif}
+.btn-primary{background:var(--grad);color:#fff;font-size:13px;font-weight:700;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-family:'Montserrat',sans-serif}
+.btn-small{background:var(--bg3);color:var(--text);font-size:12px;border:1px solid var(--border2);padding:5px 12px;border-radius:6px;cursor:pointer;font-family:'Montserrat',sans-serif}
+.btn-danger-sm{background:rgba(239,68,68,0.1);color:#fca5a5;font-size:12px;border:1px solid rgba(239,68,68,0.25);padding:5px 10px;border-radius:6px;cursor:pointer;font-family:'Montserrat',sans-serif}
 .empty{font-size:13px;color:var(--hint);padding:.5rem 0}
 .lesson-form{max-width:600px}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
@@ -235,10 +235,10 @@ code{font-family:var(--mono);font-size:12px;background:var(--bg3);padding:2px 6p
 .comment-admin{border-color:rgba(139,92,246,0.3) !important;background:rgba(139,92,246,0.05) !important}
 .comment-reply{margin-left:2.5rem;margin-top:-4px;border-left:2px solid var(--purple-bdr) !important}
 .comment-img{max-width:280px;max-height:200px;border-radius:10px;margin-top:8px;object-fit:cover;border:1px solid var(--border)}
-.reply-btn{background:none;border:none;color:var(--purple-l);font-size:12px;font-weight:600;cursor:pointer;margin-top:8px;padding:4px 0;font-family:'Plus Jakarta Sans',sans-serif}
+.reply-btn{background:none;border:none;color:var(--purple-l);font-size:12px;font-weight:600;cursor:pointer;margin-top:8px;padding:4px 0;font-family:'Montserrat',sans-serif}
 .reply-btn:hover{text-decoration:underline}
 .reply-form{margin-top:10px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px}
-.reply-form textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;resize:vertical;outline:none;font-family:'Plus Jakarta Sans',sans-serif}
+.reply-form textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;resize:vertical;outline:none;font-family:'Montserrat',sans-serif}
 
 .comment-form-bot{display:flex;align-items:center;gap:10px;margin-top:8px}
 .img-btn{font-size:12px;color:var(--purple-l);cursor:pointer;padding:6px 12px;border:1px dashed var(--purple-bdr);border-radius:8px;background:var(--purple-dim);font-weight:500;display:inline-flex;align-items:center;gap:4px}
@@ -274,8 +274,8 @@ code{font-family:var(--mono);font-size:12px;background:var(--bg3);padding:2px 6p
 .chat-attach{cursor:pointer;font-size:18px;color:var(--muted);padding:6px;transition:color .15s}
 .chat-attach:hover{color:var(--purple-l)}
 .chat-attach input{display:none}
-#chatInput{flex:1;background:transparent;border:none;color:var(--text);padding:8px 4px;font-size:14px;resize:none;outline:none;font-family:'Plus Jakarta Sans',sans-serif;max-height:120px}
-.chat-send{background:linear-gradient(135deg,var(--purple),var(--green));color:#fff;font-size:13px;font-weight:700;border:none;padding:8px 18px;border-radius:20px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:opacity .15s}
+#chatInput{flex:1;background:transparent;border:none;color:var(--text);padding:8px 4px;font-size:14px;resize:none;outline:none;font-family:'Montserrat',sans-serif;max-height:120px}
+.chat-send{background:linear-gradient(135deg,var(--purple),var(--green));color:#fff;font-size:13px;font-weight:700;border:none;padding:8px 18px;border-radius:20px;cursor:pointer;font-family:'Montserrat',sans-serif;transition:opacity .15s}
 .chat-send:hover{opacity:.88}
 
 /* ─── Contact Section ───────────────────────────────────────────── */
