@@ -139,11 +139,12 @@ app.get('/', (req, res) => {
   const s = {};
   settingsRaw.forEach(r => s[r.key] = r.value);
   const homeCats = db.prepare('SELECT * FROM homepage_categories ORDER BY sort_order').all();
+  const bannerSlides = db.prepare('SELECT * FROM banner_slides ORDER BY sort_order, id').all();
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.send(renderHomepage(freeLessons, s, homeCats));
+  res.send(renderHomepage(freeLessons, s, homeCats, bannerSlides));
 });
 
-function renderHomepage(freeLessons, s = {}, homeCats = []) {
+function renderHomepage(freeLessons, s = {}, homeCats = [], bannerSlides = []) {
   const title = s.hero_title || 'Reel бичлэгийн мэргэжлийн сургалт';
   const subtitle = s.hero_subtitle || 'iPhone бичлэгээс эхлэн CapCut монтаж, Freepik AI, агуулгын стратеги хүртэл — бүх зүйлийг нэг газраас.';
   const badge = s.hero_badge || 'Монгол хэлний reel сургалт';
@@ -249,6 +250,50 @@ function renderHomepage(freeLessons, s = {}, homeCats = []) {
       `}
     </div>
   </div>
+
+  <!-- Banner slideshow -->
+  ${bannerSlides.length > 0 ? `
+  <div class="banner-wrap">
+    <div class="banner-slider" id="bannerSlider">
+      ${bannerSlides.map((sl, i) => `
+        <div class="banner-slide ${i === 0 ? 'active' : ''}" data-idx="${i}">
+          ${sl.link ? `<a href="${sl.link}" target="_blank">` : ''}
+            <img src="${sl.image}" alt="${sl.title || 'banner'}" loading="${i===0?'eager':'lazy'}">
+          ${sl.link ? '</a>' : ''}
+        </div>
+      `).join('')}
+      ${bannerSlides.length > 1 ? `
+      <button class="banner-nav banner-prev" onclick="bannerMove(-1)" aria-label="Өмнөх">‹</button>
+      <button class="banner-nav banner-next" onclick="bannerMove(1)" aria-label="Дараах">›</button>
+      <div class="banner-dots">
+        ${bannerSlides.map((_,i) => `<button class="banner-dot ${i===0?'active':''}" data-idx="${i}" onclick="bannerGo(${i})"></button>`).join('')}
+      </div>
+      ` : ''}
+    </div>
+  </div>
+  <script>
+    (function(){
+      const slides = document.querySelectorAll('.banner-slide');
+      const dots = document.querySelectorAll('.banner-dot');
+      if (slides.length < 2) return;
+      let cur = 0, timer;
+      window.bannerGo = (idx) => {
+        slides[cur].classList.remove('active');
+        if (dots[cur]) dots[cur].classList.remove('active');
+        cur = (idx + slides.length) % slides.length;
+        slides[cur].classList.add('active');
+        if (dots[cur]) dots[cur].classList.add('active');
+        resetTimer();
+      };
+      window.bannerMove = (dir) => window.bannerGo(cur + dir);
+      function resetTimer() {
+        clearInterval(timer);
+        timer = setInterval(() => window.bannerMove(1), 5000);
+      }
+      resetTimer();
+    })();
+  </script>
+  ` : ''}
 
   <!-- Free lessons -->
   ${freeLessons.length > 0 ? `

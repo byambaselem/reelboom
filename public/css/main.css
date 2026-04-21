@@ -367,3 +367,30 @@ code{font-family:var(--mono);font-size:12px;background:var(--bg3);padding:2px 6p
 
 /* Homepage tool pill thumbnail */
 .tp-icon-img{width:44px;height:44px;border-radius:12px;object-fit:cover;flex-shrink:0;border:1px solid var(--border)}
+
+/* ─── Banner slideshow (homepage) ─────────────────────────────── */
+.banner-wrap{max-width:1400px;margin:3rem auto 1rem;padding:0 2rem}
+.banner-slider{position:relative;width:100%;aspect-ratio:3/1;border-radius:20px;overflow:hidden;background:var(--card);border:1px solid var(--border)}
+.banner-slide{position:absolute;inset:0;opacity:0;transition:opacity .6s ease;pointer-events:none}
+.banner-slide.active{opacity:1;pointer-events:auto}
+.banner-slide a,.banner-slide{display:block;width:100%;height:100%}
+.banner-slide img{width:100%;height:100%;object-fit:cover;display:block}
+.banner-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);color:#fff;border:none;width:40px;height:40px;border-radius:50%;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;transition:.15s;backdrop-filter:blur(6px)}
+.banner-nav:hover{background:rgba(0,0,0,.75)}
+.banner-prev{left:12px}
+.banner-next{right:12px}
+.banner-dots{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:2}
+.banner-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.4);border:none;padding:0;cursor:pointer;transition:.2s}
+.banner-dot.active{background:#fff;width:24px;border-radius:4px}
+@media (max-width: 700px){
+  .banner-wrap{padding:0 1rem;margin-top:2rem}
+  .banner-slider{aspect-ratio:2/1}
+  .banner-nav{width:32px;height:32px;font-size:18px}
+}
+
+/* ─── Banner admin ─────────────────────────────────────────────── */
+.banner-admin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
+.banner-admin-item{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.banner-admin-img{width:100%;aspect-ratio:3/1;object-fit:cover;display:block;background:var(--bg2)}
+.banner-admin-info{padding:12px;flex:1}
+.banner-admin-item form{padding:0 12px 12px}

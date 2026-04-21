@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" width="1500" height="500">
+  <defs>
+    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1500" height="500" fill="url(#g2)"/>
+  <g opacity="0.15">
+    <circle cx="200" cy="100" r="3" fill="#ffffff"/>
+    <circle cx="400" cy="200" r="2" fill="#ffffff"/>
+    <circle cx="700" cy="80" r="4" fill="#ffffff"/>
+    <circle cx="1100" cy="150" r="2" fill="#ffffff"/>
+    <circle cx="1300" cy="350" r="3" fill="#ffffff"/>
+    <circle cx="150" cy="400" r="2" fill="#ffffff"/>
+    <circle cx="900" cy="420" r="3" fill="#ffffff"/>
+  </g>
+  <rect x="100" y="150" width="600" height="200" rx="20" fill="#8b5cf6" opacity="0.15"/>
+  <text x="150" y="210" font-family="Montserrat, sans-serif" font-size="24" font-weight="600" fill="#a78bfa">ШИНЭ БҮЛЭГ</text>
+  <text x="150" y="280" font-family="Montserrat, sans-serif" font-size="56" font-weight="800" fill="#ffffff">CapCut Pro хичээл</text>
+  <text x="150" y="325" font-family="Montserrat, sans-serif" font-size="22" font-weight="500" fill="#cbd5e1">Мэргэжлийн монтаж, transition, эффект</text>
+  <g transform="translate(1100, 250)">
+    <rect x="-120" y="-80" width="240" height="160" rx="16" fill="#10b981" opacity="0.2"/>
+    <text x="0" y="-10" text-anchor="middle" font-family="Montserrat, sans-serif" font-size="80" font-weight="800" fill="#10b981">10+</text>
+    <text x="0" y="40" text-anchor="middle" font-family="Montserrat, sans-serif" font-size="20" font-weight="600" fill="#6ee7b7">шинэ хичээл</text>
+  </g>
+</svg>

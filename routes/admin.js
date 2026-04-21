@@ -882,6 +882,103 @@ router.post('/homepage/:id/delete', (req, res) => {
   res.redirect('/admin/homepage');
 });
 
+// ─── Banner Slideshow ────────────────────────────────────────────
+router.get('/banner', (req, res) => {
+  const slides = db.prepare('SELECT * FROM banner_slides ORDER BY sort_order, id').all();
+  res.send(adminLayout('Banner slideshow', `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div>
+        <h2 style="margin:0;color:#fff">🖼 Banner slideshow</h2>
+        <p style="color:var(--hint);font-size:13px;margin-top:4px">Нүүр хуудасны hero хэсгийн доор автомат солигддог banner</p>
+      </div>
+    </div>
+
+    <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.3);border-radius:12px;padding:1rem;margin-bottom:1.5rem">
+      <div style="font-size:12px;font-weight:700;color:var(--purple-l);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">📐 Зургийн харьцаа</div>
+      <div style="color:var(--muted);font-size:13px;line-height:1.6">
+        • <b>Харьцаа:</b> 3:1 буюу <b>тэгш өнцөгт горизонтал</b> (жишээ: 1500×500px)<br>
+        • <b>Хамгийн их хэмжээ:</b> 5MB<br>
+        • <b>Format:</b> JPG, PNG, WEBP<br>
+        • <b>Нэмэлт:</b> 2+ зураг оруулбал автомат slide хийгдэнэ (5 секунд тутамд), 1 зураг бол static
+      </div>
+    </div>
+
+    <!-- Upload form -->
+    <form method="POST" action="/admin/banner/new" enctype="multipart/form-data" class="lesson-form" style="max-width:640px;background:var(--bg);padding:1.5rem;border-radius:14px;border:1px solid var(--border);margin-bottom:2rem">
+      <h3 style="color:#fff;font-size:14px;margin-bottom:1rem">+ Шинэ banner нэмэх</h3>
+      <div class="field">
+        <label>Зураг (3:1 харьцаа, max 5MB)</label>
+        <input type="file" name="image" accept="image/*" required style="color:var(--muted);font-size:13px">
+      </div>
+      <div class="field">
+        <label>Гарчиг (заавал биш)</label>
+        <input type="text" name="title" placeholder="жишээ: Шинэ хичээл эхэлж байна">
+      </div>
+      <div class="field">
+        <label>Холбоос URL (заавал биш — дарвал очих хуудас)</label>
+        <input type="text" name="link" placeholder="https://... эсвэл /lessons">
+      </div>
+      <div class="field">
+        <label>Дараалал</label>
+        <input type="number" name="sort_order" value="${slides.length}" min="0" style="width:100px">
+      </div>
+      <button type="submit" class="btn-primary">Banner нэмэх</button>
+    </form>
+
+    <!-- Current slides -->
+    <h3 style="color:#fff;font-size:14px;margin-bottom:1rem">Одоогийн banner-ууд (${slides.length})</h3>
+    ${slides.length === 0 ? '<p style="color:var(--hint);padding:2rem;text-align:center;background:var(--card);border:1px dashed var(--border);border-radius:14px">Одоогоор banner байхгүй. Дээрээс нэмнэ үү.</p>' : `
+    <div class="banner-admin-grid">
+      ${slides.map(sl => `
+        <div class="banner-admin-item">
+          <img src="${sl.image}" class="banner-admin-img">
+          <div class="banner-admin-info">
+            <div style="font-weight:600;color:#fff;font-size:13px">${sl.title || '<em style="color:var(--hint)">Гарчиггүй</em>'}</div>
+            ${sl.link ? `<div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:4px;word-break:break-all">🔗 ${sl.link}</div>` : ''}
+            <div style="font-size:11px;color:var(--hint);margin-top:4px">Дараалал: ${sl.sort_order}</div>
+          </div>
+          <form method="POST" action="/admin/banner/${sl.id}/delete" style="margin-top:8px">
+            <button class="btn-danger-sm" onclick="return confirm('Энэ banner-г устгах уу?')">Устгах</button>
+          </form>
+        </div>
+      `).join('')}
+    </div>`}
+  `));
+});
+
+const bannerUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(UPLOADS_DIR, 'banners');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, 'bn_' + Date.now() + '_' + Math.random().toString(36).slice(2,6) + ext);
+    }
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Зөвхөн зураг'));
+  }
+});
+
+router.post('/banner/new', bannerUpload.single('image'), (req, res) => {
+  if (!req.file) return res.redirect('/admin/banner');
+  const { title, link, sort_order } = req.body;
+  const url = '/uploads/banners/' + req.file.filename;
+  db.prepare('INSERT INTO banner_slides (image, link, title, sort_order) VALUES (?,?,?,?)')
+    .run(url, link?.trim() || null, title?.trim() || null, parseInt(sort_order) || 0);
+  res.redirect('/admin/banner');
+});
+
+router.post('/banner/:id/delete', (req, res) => {
+  db.prepare('DELETE FROM banner_slides WHERE id=?').run(req.params.id);
+  res.redirect('/admin/banner');
+});
+
 function homeCatForm(c, defaultOrder) {
   return `
     <h2>${c ? 'Бүлэг засах' : 'Шинэ бүлэг'}</h2>
@@ -1255,6 +1352,7 @@ function adminLayout(title, body) {
       <a href="/admin/categories" class="nav-link">Бүлгүүд</a>
       <a href="/admin/lessons" class="nav-link">Хичээл</a>
       <a href="/admin/homepage" class="nav-link">Нүүр бүлэг</a>
+      <a href="/admin/banner" class="nav-link">🖼 Banner</a>
       <a href="/admin/comments" class="nav-link" style="position:relative">Коммент${unreadComm > 0 ? `<span class="nav-badge">${unreadComm}</span>` : ''}</a>
       <a href="/admin/chat" class="nav-link" style="position:relative">💬 Inbox${unread > 0 ? `<span class="nav-badge">${unread}</span>` : ''}</a>
       <a href="/admin/settings" class="nav-link">⚙ Тохиргоо</a>

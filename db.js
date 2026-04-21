@@ -132,6 +132,15 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  CREATE TABLE IF NOT EXISTS banner_slides (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    image TEXT NOT NULL,
+    link TEXT,
+    title TEXT,
+    sort_order INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE INDEX IF NOT EXISTS idx_visits_date ON page_visits(created_at);
   CREATE INDEX IF NOT EXISTS idx_sessions_lastseen ON user_sessions(last_seen);
 `);

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" width="1500" height="500">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="50%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.7" cy="0.3" r="0.5">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1500" height="500" fill="url(#g1)"/>
+  <rect width="1500" height="500" fill="url(#glow)"/>
+  <circle cx="250" cy="250" r="180" fill="#ffffff" opacity="0.08"/>
+  <circle cx="1250" cy="250" r="120" fill="#ffffff" opacity="0.1"/>
+  <text x="750" y="220" text-anchor="middle" font-family="Montserrat, sans-serif" font-size="72" font-weight="800" fill="#ffffff">Reel бичлэгийн сургалт</text>
+  <text x="750" y="300" text-anchor="middle" font-family="Montserrat, sans-serif" font-size="32" font-weight="500" fill="#ffffff" opacity="0.9">Мэргэжлийн түвшинд сурч мэдэж, өөрийн контентоо бүтээ</text>
+  <rect x="650" y="360" width="200" height="60" rx="30" fill="#ffffff"/>
+  <text x="750" y="398" text-anchor="middle" font-family="Montserrat, sans-serif" font-size="20" font-weight="700" fill="#6366f1">Эхлэх →</text>
+</svg>
