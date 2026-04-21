@@ -894,12 +894,13 @@ router.get('/banner', (req, res) => {
     </div>
 
     <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.3);border-radius:12px;padding:1rem;margin-bottom:1.5rem">
-      <div style="font-size:12px;font-weight:700;color:var(--purple-l);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">📐 Зургийн харьцаа</div>
+      <div style="font-size:12px;font-weight:700;color:var(--purple-l);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">📐 Зургийн зөвлөгөө</div>
       <div style="color:var(--muted);font-size:13px;line-height:1.6">
-        • <b>Харьцаа:</b> 3:1 буюу <b>тэгш өнцөгт горизонтал</b> (жишээ: 1500×500px)<br>
+        • <b>Хэмжээ:</b> Таны upload хийсэн зургийн жинхэнэ хэмжээгээр харагдана<br>
+        • <b>Санал болгох:</b> <b>1200px-ээс ихгүй өргөн</b>, харьцаа нь хамаагүй (wide, square, vertical аль нь ч болно)<br>
         • <b>Хамгийн их хэмжээ:</b> 5MB<br>
         • <b>Format:</b> JPG, PNG, WEBP<br>
-        • <b>Нэмэлт:</b> 2+ зураг оруулбал автомат slide хийгдэнэ (5 секунд тутамд), 1 зураг бол static
+        • <b>Slideshow:</b> 2+ зураг оруулбал автомат сольж харуулна (5 секунд тутамд), 1 зураг бол зүгээр static
       </div>
     </div>
 
