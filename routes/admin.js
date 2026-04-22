@@ -431,16 +431,40 @@ router.get('/users/:id', (req, res) => {
         return `<div style="padding:10px 14px;background:var(--bg2);border-radius:10px;margin-bottom:1rem;font-size:13px">Одоогийн төлөв: ${statusText}</div>`;
       })()}
 
-      <form method="POST" action="/admin/users/${user.id}/access" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
-        <div class="field" style="flex:1;min-width:200px;margin-bottom:0">
-          <label>Хугацаа сунгах (сараар)</label>
-          <input type="number" name="months" value="0" min="0" placeholder="0 = хязгааргүй">
-          <small style="color:var(--hint);font-size:11px;display:block;margin-top:2px">0 = хязгааргүй хандах эрх</small>
+      <form method="POST" action="/admin/users/${user.id}/access-date" style="margin-bottom:12px">
+        <div class="field" style="margin-bottom:12px">
+          <label>Хандах эрх дуусах огноо</label>
+          <input type="date" name="expires_date" value="${user.expires_at ? new Date(user.expires_at).toISOString().slice(0,10) : ''}" style="font-family:var(--mono)">
+          <small style="color:var(--hint);font-size:11px;display:block;margin-top:4px">
+            Огноог өөрчилж хугацааг <b>нэмж</b> эсвэл <b>хасаж</b> болно. Хоосон үлдээвэл хязгааргүй болно.
+          </small>
         </div>
-        <div style="display:flex;gap:8px">
-          <button type="submit" class="btn-primary">Шинэчлэх</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button type="submit" class="btn-primary">Огноо хадгалах</button>
+          <span style="color:var(--hint);font-size:11px;margin:0 4px">эсвэл</span>
+          <button type="submit" name="quick" value="infinity" class="btn-small" style="background:rgba(139,92,246,0.2);color:#a78bfa;border:1px solid rgba(139,92,246,0.3)">∞ Хязгааргүй болгох</button>
         </div>
       </form>
+
+      <div style="padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span style="color:var(--hint);font-size:11px">Түргэн сунгах:</span>
+        <form method="POST" action="/admin/users/${user.id}/access-add" style="display:inline">
+          <input type="hidden" name="months" value="1">
+          <button type="submit" class="btn-small">+1 сар</button>
+        </form>
+        <form method="POST" action="/admin/users/${user.id}/access-add" style="display:inline">
+          <input type="hidden" name="months" value="3">
+          <button type="submit" class="btn-small">+3 сар</button>
+        </form>
+        <form method="POST" action="/admin/users/${user.id}/access-add" style="display:inline">
+          <input type="hidden" name="months" value="6">
+          <button type="submit" class="btn-small">+6 сар</button>
+        </form>
+        <form method="POST" action="/admin/users/${user.id}/access-add" style="display:inline">
+          <input type="hidden" name="months" value="12">
+          <button type="submit" class="btn-small">+1 жил</button>
+        </form>
+      </div>
 
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
         ${(user.is_active === 0 || (user.expires_at && new Date(user.expires_at) < new Date())) ? `
@@ -476,25 +500,39 @@ router.post('/users/:id/sessions/clear', (req, res) => {
   res.redirect('/admin/users/' + req.params.id);
 });
 
-// Хандах эрхийн хугацаа өөрчлөх
-router.post('/users/:id/access', (req, res) => {
-  const months = parseInt(req.body.months);
-  if (isNaN(months) || months < 0) return res.redirect('/admin/users/' + req.params.id);
-
+// Огнооноор хугацаа тохируулах (огноо оруулсан эсвэл хязгааргүй)
+router.post('/users/:id/access-date', (req, res) => {
+  const { expires_date, quick } = req.body;
   let expiresAt = null;
-  if (months > 0) {
-    // Хэрэв хугацаа өмнө нь байгаа бол түүнд нэмнэ, эс бол одооноос эхэлнэ
-    const user = db.prepare('SELECT expires_at FROM users WHERE id=?').get(req.params.id);
-    const now = new Date();
-    let base = now;
-    if (user?.expires_at) {
-      const cur = new Date(user.expires_at);
-      if (cur > now) base = cur; // ирээдүйд байгаа бол түүний дээр нэмэх
-    }
-    const d = new Date(base);
-    d.setMonth(d.getMonth() + months);
+
+  if (quick === 'infinity' || !expires_date) {
+    expiresAt = null;
+  } else {
+    // Өдрийн төгсгөл (23:59:59) болгоно, тэгвэл тухайн өдөр бүхэлдээ идэвхтэй
+    const d = new Date(expires_date + 'T23:59:59');
+    if (isNaN(d.getTime())) return res.redirect('/admin/users/' + req.params.id);
     expiresAt = d.toISOString();
   }
+
+  db.prepare('UPDATE users SET expires_at=?, is_active=1 WHERE id=?').run(expiresAt, req.params.id);
+  res.redirect('/admin/users/' + req.params.id);
+});
+
+// Хугацаа сараар нэмэх (түргэн товч)
+router.post('/users/:id/access-add', (req, res) => {
+  const months = parseInt(req.body.months);
+  if (isNaN(months) || months <= 0) return res.redirect('/admin/users/' + req.params.id);
+
+  const user = db.prepare('SELECT expires_at FROM users WHERE id=?').get(req.params.id);
+  const now = new Date();
+  let base = now;
+  if (user?.expires_at) {
+    const cur = new Date(user.expires_at);
+    if (cur > now) base = cur;
+  }
+  const d = new Date(base);
+  d.setMonth(d.getMonth() + months);
+  const expiresAt = d.toISOString();
 
   db.prepare('UPDATE users SET expires_at=?, is_active=1 WHERE id=?').run(expiresAt, req.params.id);
   res.redirect('/admin/users/' + req.params.id);
@@ -887,17 +925,6 @@ router.get('/settings', (req, res) => {
         <textarea name="hero_subtitle" rows="3">${settings.hero_subtitle||''}</textarea>
       </div>
 
-      <div style="font-size:12px;font-weight:700;color:var(--purple-l);letter-spacing:1px;text-transform:uppercase;margin:1.5rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">Статистик тоонууд</div>
-
-      <div class="field-row">
-        <div class="field"><label>Хичээлийн тоо</label><input type="text" name="stat_lessons" value="${settings.stat_lessons||'32'}"></div>
-        <div class="field"><label>Блокийн тоо</label><input type="text" name="stat_blocks" value="${settings.stat_blocks||'8'}"></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>Нийт цаг</label><input type="text" name="stat_hours" value="${settings.stat_hours||'~32ц'}"></div>
-        <div class="field"><label>Хандалт</label><input type="text" name="stat_access" value="${settings.stat_access||'∞'}"></div>
-      </div>
-
       <div style="font-size:12px;font-weight:700;color:var(--purple-l);letter-spacing:1px;text-transform:uppercase;margin:1.5rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">CTA хэсэг (доод дуудлага)</div>
 
       <div class="field">
@@ -954,7 +981,7 @@ const uploadSettings = multer({
 });
 
 router.post('/settings', uploadSettings.fields([{ name: 'site_logo', maxCount: 1 }]), (req, res) => {
-  const fields = ['hero_title','hero_line1','hero_line2','hero_line3','hero_line1_mode','hero_line2_mode','hero_line3_mode','hero_subtitle','hero_badge','cta_title','cta_subtitle','stat_lessons','stat_blocks','stat_hours','stat_access','logo_size','grad_from','grad_to','text_color_mode','contact_title','contact_subtitle','contact_phone','contact_email','contact_facebook','contact_instagram','contact_address','default_access_months'];
+  const fields = ['hero_title','hero_line1','hero_line2','hero_line3','hero_line1_mode','hero_line2_mode','hero_line3_mode','hero_subtitle','hero_badge','cta_title','cta_subtitle','logo_size','grad_from','grad_to','text_color_mode','contact_title','contact_subtitle','contact_phone','contact_email','contact_facebook','contact_instagram','contact_address','default_access_months'];
   const upsert = db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?,?)');
   fields.forEach(f => { if (req.body[f] !== undefined) upsert.run(f, req.body[f]); });
   if (req.files?.site_logo?.[0]) {

@@ -352,8 +352,12 @@ function layout(title, session, body) {
         if (daysLeft <= 0) return '<span class="nav-expiry expired">⚠ Хугацаа дууссан</span>';
         if (daysLeft <= 7) return `<span class="nav-expiry urgent" title="Хандах эрх удахгүй дуусна">⏱ ${daysLeft} хоног</span>`;
         if (daysLeft <= 30) return `<span class="nav-expiry warn" title="Хандах эрх удахгүй дуусна">⏱ ${daysLeft} хоног</span>`;
-        if (daysLeft <= 90) return `<span class="nav-expiry ok" title="Хандах эрхийн хугацаа">⏱ ${daysLeft} хоног</span>`;
-        return '';
+        if (daysLeft <= 365) return `<span class="nav-expiry ok" title="Хандах эрхийн хугацаа">⏱ ${daysLeft} хоног</span>`;
+        // 1 жилээс их бол жилээр
+        const years = Math.floor(daysLeft / 365);
+        const remDays = daysLeft - years * 365;
+        if (remDays < 30) return `<span class="nav-expiry ok" title="Хандах эрхийн хугацаа">⏱ ${years} жил</span>`;
+        return `<span class="nav-expiry ok" title="Хандах эрхийн хугацаа">⏱ ${years}ж ${Math.floor(remDays/30)}с</span>`;
       })() : ''}
       <a href="/profile" class="nav-link nav-profile">
         ${session.avatar ? `<img src="${session.avatar}" class="nav-avatar">` : `<span class="nav-avatar-init">${(session.userName||'?').charAt(0).toUpperCase()}</span>`}
