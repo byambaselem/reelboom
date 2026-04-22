@@ -344,6 +344,17 @@ function layout(title, session, body) {
       <a href="/lessons" class="nav-link">Хичээлүүд</a>
       ${session.role !== 'admin' ? `<a href="/chat" class="nav-link" style="position:relative">💬 Админтай чатлах${session.unreadChat > 0 ? `<span class="nav-badge">${session.unreadChat}</span>` : ''}</a>` : ''}
       ${session.role === 'admin' ? '<a href="/admin" class="nav-link nav-admin">⚙ Admin</a>' : ''}
+      ${session.role !== 'admin' ? (() => {
+        if (!session.expiresAt) return '<span class="nav-expiry infinite" title="Хязгааргүй хандах эрх">∞</span>';
+        const exp = new Date(session.expiresAt);
+        const now = new Date();
+        const daysLeft = Math.ceil((exp - now) / (1000*60*60*24));
+        if (daysLeft <= 0) return '<span class="nav-expiry expired">⚠ Хугацаа дууссан</span>';
+        if (daysLeft <= 7) return `<span class="nav-expiry urgent" title="Хандах эрх удахгүй дуусна">⏱ ${daysLeft} хоног</span>`;
+        if (daysLeft <= 30) return `<span class="nav-expiry warn" title="Хандах эрх удахгүй дуусна">⏱ ${daysLeft} хоног</span>`;
+        if (daysLeft <= 90) return `<span class="nav-expiry ok" title="Хандах эрхийн хугацаа">⏱ ${daysLeft} хоног</span>`;
+        return '';
+      })() : ''}
       <a href="/profile" class="nav-link nav-profile">
         ${session.avatar ? `<img src="${session.avatar}" class="nav-avatar">` : `<span class="nav-avatar-init">${(session.userName||'?').charAt(0).toUpperCase()}</span>`}
         ${session.userName || ''}

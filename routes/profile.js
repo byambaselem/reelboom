@@ -73,6 +73,21 @@ router.post('/name', requireAuth, (req, res) => {
   res.redirect('/profile?msg=Нэр шинэчлэгдлээ');
 });
 
+// POST /profile/phone
+router.post('/phone', requireAuth, (req, res) => {
+  const clean = (req.body.phone || '').replace(/[^\d]/g, '');
+  if (clean && (clean.length < 8 || clean.length > 15)) {
+    return res.redirect('/profile?err=Утасны дугаар буруу (8-15 оронтой тоо)');
+  }
+  // Давхардал шалгах
+  if (clean) {
+    const exists = db.prepare('SELECT id FROM users WHERE phone=? AND id!=?').get(clean, req.session.userId);
+    if (exists) return res.redirect('/profile?err=Энэ утас өөр хэрэглэгчид бүртгэлтэй байна');
+  }
+  db.prepare('UPDATE users SET phone=? WHERE id=?').run(clean || null, req.session.userId);
+  res.redirect('/profile?msg=Утас шинэчлэгдлээ');
+});
+
 // POST /profile/sessions/:id/delete
 router.post('/sessions/:id/delete', requireAuth, (req, res) => {
   db.prepare('DELETE FROM user_sessions WHERE id=? AND user_id=?').run(req.params.id, req.session.userId);
@@ -150,6 +165,15 @@ function renderProfile(user, sessions, msg, err, session) {
         <input type="text" name="name" value="${user.name}" required style="flex:1">
         <button type="submit" class="btn-primary">Хадгалах</button>
       </form>
+    </div>
+
+    <div class="prof-card">
+      <h3 class="prof-section-h">Утасны дугаар</h3>
+      <form method="POST" action="/profile/phone" style="display:flex;gap:10px">
+        <input type="tel" name="phone" value="${user.phone || ''}" placeholder="99112233" pattern="[0-9]{8,15}" title="8-15 оронтой тоо" style="flex:1;font-family:var(--mono)">
+        <button type="submit" class="btn-primary">Хадгалах</button>
+      </form>
+      <small style="color:var(--hint);font-size:11px;display:block;margin-top:6px">8-15 оронтой тоо</small>
     </div>
 
     <div class="prof-card">

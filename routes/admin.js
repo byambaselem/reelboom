@@ -367,7 +367,7 @@ router.get('/users/:id', (req, res) => {
       }
       <div style="flex:1">
         <h2 style="color:#fff;font-size:1.5rem;margin-bottom:4px">${user.name} ${user.role === 'admin' ? '<span class="admin-tag">ADMIN</span>' : ''}</h2>
-        <p style="color:var(--hint);font-size:13px;margin-bottom:4px">${user.email}</p>
+        <p style="color:var(--hint);font-size:13px;margin-bottom:4px">${user.email}${user.phone ? ` · <span style="font-family:var(--mono)">📱 ${user.phone}</span>` : ''}</p>
         <p style="color:var(--hint);font-size:11px;font-family:var(--mono)">Код: ${user.access_code || '—'} · Бүртгүүлсэн: ${new Date(user.created_at).toLocaleDateString('mn-MN')}</p>
       </div>
       ${user.id !== req.session.userId ? `
@@ -398,6 +398,21 @@ router.get('/users/:id', (req, res) => {
       <form method="POST" action="/admin/users/${user.id}/sessions/clear" style="margin-top:12px">
         <button class="btn-danger-sm" onclick="return confirm('Бүх төхөөрөмжөөс гаргах уу?')">Бүгдээс гаргах</button>
       </form>` : ''}
+    </div>
+
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.25rem;margin-bottom:1rem">
+      <h3 style="color:#fff;font-size:14px;margin-bottom:12px">✏️ Хэрэглэгчийн мэдээлэл засах</h3>
+      <form method="POST" action="/admin/users/${user.id}/info" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+        <div class="field" style="flex:1;min-width:200px;margin-bottom:0">
+          <label>Нэр</label>
+          <input type="text" name="name" value="${user.name}" required>
+        </div>
+        <div class="field" style="flex:1;min-width:200px;margin-bottom:0">
+          <label>Утасны дугаар</label>
+          <input type="tel" name="phone" value="${user.phone || ''}" placeholder="99112233" pattern="[0-9]{0,15}" style="font-family:var(--mono)">
+        </div>
+        <button type="submit" class="btn-primary">Шинэчлэх</button>
+      </form>
     </div>
 
     <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.25rem;margin-bottom:1rem">
@@ -509,6 +524,23 @@ router.post('/users/:id/activate', (req, res) => {
 router.post('/users/:id/deactivate', (req, res) => {
   db.prepare('UPDATE users SET is_active=0 WHERE id=?').run(req.params.id);
   db.prepare('DELETE FROM user_sessions WHERE user_id=?').run(req.params.id);
+  res.redirect('/admin/users/' + req.params.id);
+});
+
+// Хэрэглэгчийн нэр/утас засах
+router.post('/users/:id/info', (req, res) => {
+  const { name, phone } = req.body;
+  const cleanPhone = (phone || '').replace(/[^\d]/g, '');
+  if (cleanPhone && (cleanPhone.length < 8 || cleanPhone.length > 15)) {
+    return res.redirect('/admin/users/' + req.params.id);
+  }
+  if (cleanPhone) {
+    const exists = db.prepare('SELECT id FROM users WHERE phone=? AND id!=?').get(cleanPhone, req.params.id);
+    if (exists) return res.redirect('/admin/users/' + req.params.id);
+  }
+  if (name?.trim()) {
+    db.prepare('UPDATE users SET name=?, phone=? WHERE id=?').run(name.trim(), cleanPhone || null, req.params.id);
+  }
   res.redirect('/admin/users/' + req.params.id);
 });
 

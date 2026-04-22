@@ -43,15 +43,12 @@ function optionalAuth(req, res, next) {
   try {
     let unread = 0;
     if (req.session.role === 'admin') {
-      // Админд: бүх сурагчаас ирсэн уншаагүй мессежийн тоо
-      // target_id = сурагчийн ID, user_id = сурагч өөрөө, is_read=0
       const r = db.prepare(`
         SELECT COUNT(*) as c FROM chat_messages
         WHERE user_id = target_id AND is_read = 0
       `).get();
       unread = r.c;
     } else {
-      // Сурагчид: админаас ирсэн уншаагүй мессежийн тоо
       const r = db.prepare(`
         SELECT COUNT(*) as c FROM chat_messages
         WHERE target_id = ? AND user_id != ? AND is_read = 0
@@ -62,6 +59,14 @@ function optionalAuth(req, res, next) {
     req.session.unreadChat = unread;
   } catch(e) {
     res.locals.unread = 0;
+  }
+
+  // Хэрэглэгчийн хугацаа session-д хадгалах (student-д)
+  if (req.session.role !== 'admin') {
+    try {
+      const u = db.prepare('SELECT expires_at FROM users WHERE id=?').get(req.session.userId);
+      req.session.expiresAt = u?.expires_at || null;
+    } catch(e) {}
   }
 
   next();
