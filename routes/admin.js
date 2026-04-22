@@ -428,7 +428,7 @@ router.get('/users/:id', (req, res) => {
       </form>
 
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-        ${user.is_active === 0 || (exp && exp < now) ? `
+        ${(user.is_active === 0 || (user.expires_at && new Date(user.expires_at) < new Date())) ? `
           <form method="POST" action="/admin/users/${user.id}/activate" style="display:inline">
             <button class="btn-primary" style="background:#10b981">✓ Дахин идэвхжүүлэх</button>
           </form>` : `
