@@ -7,7 +7,10 @@ const db = require('../db');
 router.get('/login', (req, res) => {
   if (req.session.userId) return res.redirect('/lessons');
   const next = req.query.next || '/lessons';
-  res.send(renderLogin({ error: null, next }));
+  let error = null;
+  if (req.query.err === 'inactive') error = 'Таны бүртгэл идэвхгүй болсон байна. Админтай холбогдоно уу.';
+  else if (req.query.err === 'expired') error = 'Таны хандах эрхийн хугацаа дууссан байна. Админтай холбогдоно уу.';
+  res.send(renderLogin({ error, next }));
 });
 
 // POST /login
@@ -18,12 +21,26 @@ router.post('/login', (req, res) => {
     return res.send(renderLogin({ error: 'И-мэйл эсвэл нууц үг буруу байна.', next: next || '/lessons' }));
   }
 
+  // Хэрэглэгч идэвхгүй / хугацаа дууссан эсэх (админд хамаарахгүй)
+  if (user.role !== 'admin') {
+    if (user.is_active === 0) {
+      return res.send(renderLogin({ error: 'Таны бүртгэл идэвхгүй болсон байна. Админтай холбогдоно уу.', next: next || '/lessons' }));
+    }
+    if (user.expires_at) {
+      const exp = new Date(user.expires_at);
+      if (exp < new Date()) {
+        // Автомат идэвхгүй болгох
+        db.prepare('UPDATE users SET is_active=0 WHERE id=?').run(user.id);
+        return res.send(renderLogin({ error: 'Таны хандах эрхийн хугацаа дууссан байна. Админтай холбогдоно уу.', next: next || '/lessons' }));
+      }
+    }
+  }
+
   // Device session шалгах (admin-д хязгаар байхгүй)
   if (user.role !== 'admin') {
     const MAX_DEVICES = 3;
     const sessions = db.prepare('SELECT * FROM user_sessions WHERE user_id=? ORDER BY last_seen DESC').all(user.id);
     if (sessions.length >= MAX_DEVICES) {
-      // Хамгийн хуучныг устгах
       const oldest = sessions[sessions.length - 1];
       db.prepare('DELETE FROM user_sessions WHERE id=?').run(oldest.id);
     }
@@ -34,7 +51,6 @@ router.post('/login', (req, res) => {
   req.session.role = user.role;
   req.session.avatar = user.avatar;
 
-  // Шинэ device бүртгэх
   const ua = (req.headers['user-agent'] || '').substring(0, 200);
   const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
   try {
@@ -52,9 +68,14 @@ router.get('/register', (req, res) => {
 
 // POST /register
 router.post('/register', (req, res) => {
-  const { name, email, password, password2, code } = req.body;
-  if (!name || !email || !password || !password2 || !code) {
+  const { name, email, phone, password, password2, code } = req.body;
+  if (!name || !email || !phone || !password || !password2 || !code) {
     return res.send(renderRegister({ error: 'Бүх талбарыг бөглөнө үү.' }));
+  }
+  // Утасны дугаар шалгах (зөвхөн тоо, 8-15 урт)
+  const cleanPhone = (phone || '').replace(/[^\d]/g, '');
+  if (cleanPhone.length < 8 || cleanPhone.length > 15) {
+    return res.send(renderRegister({ error: 'Утасны дугаар буруу байна (8-15 оронтой тоо).' }));
   }
   if (password !== password2) {
     return res.send(renderRegister({ error: 'Нууц үг таарахгүй байна.' }));
@@ -70,9 +91,24 @@ router.post('/register', (req, res) => {
   if (exists) {
     return res.send(renderRegister({ error: 'Энэ и-мэйл бүртгэлтэй байна.' }));
   }
+  const phoneExists = db.prepare('SELECT id FROM users WHERE phone=?').get(cleanPhone);
+  if (phoneExists) {
+    return res.send(renderRegister({ error: 'Энэ утасны дугаар өөр хэрэглэгчид бүртгэлтэй байна.' }));
+  }
+
+  // Хугацааны тохиргоо тооцоолох
+  const setting = db.prepare("SELECT value FROM site_settings WHERE key='default_access_months'").get();
+  const months = parseInt(setting?.value) || 12;
+  let expiresAt = null;
+  if (months > 0) {
+    const d = new Date();
+    d.setMonth(d.getMonth() + months);
+    expiresAt = d.toISOString();
+  }
+
   const hash = bcrypt.hashSync(password, 10);
-  const r = db.prepare('INSERT INTO users (name,email,password,access_code,is_verified) VALUES (?,?,?,?,1)')
-    .run(name.trim(), email.trim().toLowerCase(), hash, code.trim().toUpperCase());
+  const r = db.prepare('INSERT INTO users (name,email,phone,password,access_code,is_verified,is_active,expires_at) VALUES (?,?,?,?,?,1,1,?)')
+    .run(name.trim(), email.trim().toLowerCase(), cleanPhone, hash, code.trim().toUpperCase(), expiresAt);
   db.prepare('UPDATE access_codes SET used=1, used_by=? WHERE id=?').run(r.lastInsertRowid, ac.id);
   req.session.userId = r.lastInsertRowid;
   req.session.userName = name.trim();
@@ -138,6 +174,11 @@ function renderRegister({ error }) {
           <div class="field">
             <label>И-мэйл</label>
             <input type="email" name="email" placeholder="you@email.com" required>
+          </div>
+          <div class="field">
+            <label>Утасны дугаар</label>
+            <input type="tel" name="phone" placeholder="99112233" required pattern="[0-9]{8,15}" title="8-15 оронтой тоо">
+            <small style="color:var(--hint);font-size:11px;display:block;margin-top:4px">⚠️ Та бүртгэлийн код ирсэн утасны дугаараа оруулна уу</small>
           </div>
           <div class="field">
             <label>Нууц үг</label>

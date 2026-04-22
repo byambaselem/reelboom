@@ -154,6 +154,9 @@ const migrations = [
   'ALTER TABLE chat_messages ADD COLUMN video TEXT',
   'ALTER TABLE chat_messages ADD COLUMN is_read INTEGER DEFAULT 0',
   'ALTER TABLE categories ADD COLUMN thumbnail TEXT',
+  'ALTER TABLE users ADD COLUMN phone TEXT',
+  'ALTER TABLE users ADD COLUMN expires_at DATETIME',
+  'ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1',
 ];
 migrations.forEach(sql => { try { db.exec(sql); } catch(e) {} });
 
@@ -254,6 +257,7 @@ const defaultSettings = {
   'contact_address': 'Улаанбаатар хот, Монгол улс',
   'contact_title': 'Бидэнтэй холбогдох',
   'contact_subtitle': 'Асуулт, санал хүсэлт байвал манай багтай холбогдоно уу',
+  'default_access_months': '12',
 };
 const insertSetting = db.prepare('INSERT OR IGNORE INTO site_settings (key, value) VALUES (?,?)');
 Object.entries(defaultSettings).forEach(([k,v]) => insertSetting.run(k, v));

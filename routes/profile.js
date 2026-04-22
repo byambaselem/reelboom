@@ -130,7 +130,17 @@ function renderProfile(user, sessions, msg, err, session) {
       <div style="text-align:center;margin-top:1rem">
         <h2 style="color:#fff;font-size:1.25rem">${user.name}</h2>
         <p style="color:var(--hint);font-size:13px;margin-top:4px">${user.email}</p>
+        ${user.phone ? `<p style="color:var(--hint);font-size:13px;margin-top:2px;font-family:var(--mono)">📱 ${user.phone}</p>` : ''}
         ${user.role === 'admin' ? '<span class="admin-tag" style="margin-top:6px;display:inline-block">ADMIN</span>' : ''}
+        ${user.role !== 'admin' && user.expires_at ? (() => {
+          const exp = new Date(user.expires_at);
+          const now = new Date();
+          const daysLeft = Math.ceil((exp - now) / (1000*60*60*24));
+          if (daysLeft <= 0) return `<p style="color:#ef4444;font-size:12px;margin-top:8px;font-weight:600">⚠ Хандах эрхийн хугацаа дууссан</p>`;
+          if (daysLeft <= 30) return `<p style="color:#f59e0b;font-size:12px;margin-top:8px;font-weight:600">⏱ Хандах эрх ${daysLeft} хоногийн дараа дуусна</p>`;
+          return `<p style="color:var(--hint);font-size:11px;margin-top:8px">Хандах эрх: ${exp.toLocaleDateString('mn-MN')} хүртэл</p>`;
+        })() : ''}
+        ${user.role !== 'admin' && !user.expires_at ? `<p style="color:#a78bfa;font-size:11px;margin-top:8px;font-weight:600">∞ Хязгааргүй хандах эрх</p>` : ''}
       </div>
     </div>
 

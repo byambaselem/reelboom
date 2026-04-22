@@ -242,9 +242,26 @@ router.get('/users', (req, res) => {
       <a href="/admin/users/new-admin" class="btn-primary" style="text-decoration:none">+ Шинэ Admin нэмэх</a>
     </div>
     <table class="admin-table">
-      <thead><tr><th>#</th><th>Эрх</th><th>Нэр</th><th>И-мэйл</th><th>Код</th><th>Үзсэн</th><th>Огноо</th><th></th></tr></thead>
+      <thead><tr><th>#</th><th>Эрх</th><th>Нэр</th><th>И-мэйл</th><th>Утас</th><th>Төлөв</th><th>Хугацаа</th><th>Үзсэн</th><th></th></tr></thead>
       <tbody>
-        ${users.map(u => `
+        ${users.map(u => {
+          const now = new Date();
+          const exp = u.expires_at ? new Date(u.expires_at) : null;
+          const isExpired = exp && exp < now;
+          const daysLeft = exp ? Math.ceil((exp - now) / (1000*60*60*24)) : null;
+          const isActive = u.role === 'admin' || (u.is_active !== 0 && !isExpired);
+          let statusHtml;
+          if (u.role === 'admin') statusHtml = '<span class="admin-tag">ADMIN</span>';
+          else if (u.is_active === 0) statusHtml = '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">ИДЭВХГҮЙ</span>';
+          else if (isExpired) statusHtml = '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">ХУГАЦАА ДУУССАН</span>';
+          else statusHtml = '<span style="background:rgba(16,185,129,0.15);color:#10b981;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">ИДЭВХТЭЙ</span>';
+          let expiryHtml;
+          if (u.role === 'admin') expiryHtml = '<span style="color:var(--hint);font-size:11px">—</span>';
+          else if (!u.expires_at) expiryHtml = '<span style="color:#a78bfa;font-size:11px;font-weight:600">∞ Хязгааргүй</span>';
+          else if (isExpired) expiryHtml = `<span style="color:#ef4444;font-size:11px">${exp.toLocaleDateString('mn-MN')}</span>`;
+          else if (daysLeft <= 30) expiryHtml = `<span style="color:#f59e0b;font-size:11px;font-weight:600">${daysLeft} хоног үлдсэн</span>`;
+          else expiryHtml = `<span style="color:var(--muted);font-size:11px">${exp.toLocaleDateString('mn-MN')}</span>`;
+          return `
           <tr style="cursor:pointer" onclick="if(event.target.tagName!=='BUTTON' && event.target.tagName!=='FORM') window.location='/admin/users/${u.id}'">
             <td>${u.id}</td>
             <td>${u.role === 'admin' ? '<span class="admin-tag">ADMIN</span>' : '<span style="font-size:11px;color:var(--hint);font-family:var(--mono)">student</span>'}</td>
@@ -252,10 +269,11 @@ router.get('/users', (req, res) => {
               ${u.avatar ? `<img src="${u.avatar}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px">` : ''}
               ${u.name}
             </td>
-            <td>${u.email}</td>
-            <td><code>${u.access_code || '—'}</code></td>
-            <td>${u.done} хичээл</td>
-            <td>${new Date(u.created_at).toLocaleDateString('mn-MN')}</td>
+            <td style="font-size:12px">${u.email}</td>
+            <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">${u.phone || '—'}</td>
+            <td>${statusHtml}</td>
+            <td>${expiryHtml}</td>
+            <td style="font-size:12px">${u.done}</td>
             <td>
               ${u.id !== req.session.userId ? `
               <form method="POST" action="/admin/users/${u.id}/delete" style="display:inline" onclick="event.stopPropagation()">
@@ -263,7 +281,7 @@ router.get('/users', (req, res) => {
               </form>` : '<span style="font-size:11px;color:var(--hint)">Та өөрөө</span>'}
             </td>
           </tr>
-        `).join('')}
+        `}).join('')}
       </tbody>
     </table>
   `));
@@ -382,6 +400,44 @@ router.get('/users/:id', (req, res) => {
       </form>` : ''}
     </div>
 
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.25rem;margin-bottom:1rem">
+      <h3 style="color:#fff;font-size:14px;margin-bottom:12px">🔑 Хандах эрхийн удирдлага</h3>
+
+      ${(() => {
+        const now = new Date();
+        const exp = user.expires_at ? new Date(user.expires_at) : null;
+        const isExpired = exp && exp < now;
+        const daysLeft = exp ? Math.ceil((exp - now) / (1000*60*60*24)) : null;
+        let statusText;
+        if (user.is_active === 0) statusText = '<span style="color:#ef4444;font-weight:700">ИДЭВХГҮЙ</span> (админ хаасан)';
+        else if (isExpired) statusText = '<span style="color:#ef4444;font-weight:700">ХУГАЦАА ДУУССАН</span>';
+        else if (!user.expires_at) statusText = '<span style="color:#a78bfa;font-weight:700">∞ ХЯЗГААРГҮЙ</span>';
+        else statusText = `<span style="color:#10b981;font-weight:700">ИДЭВХТЭЙ</span> · ${daysLeft} хоног үлдсэн (${exp.toLocaleDateString('mn-MN')})`;
+        return `<div style="padding:10px 14px;background:var(--bg2);border-radius:10px;margin-bottom:1rem;font-size:13px">Одоогийн төлөв: ${statusText}</div>`;
+      })()}
+
+      <form method="POST" action="/admin/users/${user.id}/access" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+        <div class="field" style="flex:1;min-width:200px;margin-bottom:0">
+          <label>Хугацаа сунгах (сараар)</label>
+          <input type="number" name="months" value="0" min="0" placeholder="0 = хязгааргүй">
+          <small style="color:var(--hint);font-size:11px;display:block;margin-top:2px">0 = хязгааргүй хандах эрх</small>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button type="submit" class="btn-primary">Шинэчлэх</button>
+        </div>
+      </form>
+
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        ${user.is_active === 0 || (exp && exp < now) ? `
+          <form method="POST" action="/admin/users/${user.id}/activate" style="display:inline">
+            <button class="btn-primary" style="background:#10b981">✓ Дахин идэвхжүүлэх</button>
+          </form>` : `
+          <form method="POST" action="/admin/users/${user.id}/deactivate" style="display:inline">
+            <button class="btn-danger-sm" onclick="return confirm('Энэ хэрэглэгчийн хандах эрхийг хаах уу?')">✗ Эрх хаах</button>
+          </form>`}
+      </div>
+    </div>
+
     <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.25rem">
       <h3 style="color:#fff;font-size:14px;margin-bottom:12px">📚 Сүүлд үзсэн хичээлүүд (${progress.length})</h3>
       ${progress.map(p => `
@@ -401,6 +457,57 @@ router.post('/users/:id/session/:sid/delete', (req, res) => {
 });
 
 router.post('/users/:id/sessions/clear', (req, res) => {
+  db.prepare('DELETE FROM user_sessions WHERE user_id=?').run(req.params.id);
+  res.redirect('/admin/users/' + req.params.id);
+});
+
+// Хандах эрхийн хугацаа өөрчлөх
+router.post('/users/:id/access', (req, res) => {
+  const months = parseInt(req.body.months);
+  if (isNaN(months) || months < 0) return res.redirect('/admin/users/' + req.params.id);
+
+  let expiresAt = null;
+  if (months > 0) {
+    // Хэрэв хугацаа өмнө нь байгаа бол түүнд нэмнэ, эс бол одооноос эхэлнэ
+    const user = db.prepare('SELECT expires_at FROM users WHERE id=?').get(req.params.id);
+    const now = new Date();
+    let base = now;
+    if (user?.expires_at) {
+      const cur = new Date(user.expires_at);
+      if (cur > now) base = cur; // ирээдүйд байгаа бол түүний дээр нэмэх
+    }
+    const d = new Date(base);
+    d.setMonth(d.getMonth() + months);
+    expiresAt = d.toISOString();
+  }
+
+  db.prepare('UPDATE users SET expires_at=?, is_active=1 WHERE id=?').run(expiresAt, req.params.id);
+  res.redirect('/admin/users/' + req.params.id);
+});
+
+router.post('/users/:id/activate', (req, res) => {
+  // Хугацаа дууссан бол default сарын хугацаагаар сэргээнэ
+  const user = db.prepare('SELECT expires_at FROM users WHERE id=?').get(req.params.id);
+  const now = new Date();
+  const exp = user?.expires_at ? new Date(user.expires_at) : null;
+  if (!exp || exp < now) {
+    const setting = db.prepare("SELECT value FROM site_settings WHERE key='default_access_months'").get();
+    const months = parseInt(setting?.value) || 12;
+    let expiresAt = null;
+    if (months > 0) {
+      const d = new Date();
+      d.setMonth(d.getMonth() + months);
+      expiresAt = d.toISOString();
+    }
+    db.prepare('UPDATE users SET is_active=1, expires_at=? WHERE id=?').run(expiresAt, req.params.id);
+  } else {
+    db.prepare('UPDATE users SET is_active=1 WHERE id=?').run(req.params.id);
+  }
+  res.redirect('/admin/users/' + req.params.id);
+});
+
+router.post('/users/:id/deactivate', (req, res) => {
+  db.prepare('UPDATE users SET is_active=0 WHERE id=?').run(req.params.id);
   db.prepare('DELETE FROM user_sessions WHERE user_id=?').run(req.params.id);
   res.redirect('/admin/users/' + req.params.id);
 });
@@ -687,6 +794,18 @@ router.get('/settings', (req, res) => {
         Үзэг — энэ бол таны градиент
       </div>
 
+      <div style="font-size:12px;font-weight:700;color:var(--purple-l);letter-spacing:1px;text-transform:uppercase;margin:1.5rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">🔑 Хандах эрхийн хугацаа</div>
+
+      <div class="field">
+        <label>Шинэ бүртгэлийн default хугацаа (сараар)</label>
+        <input type="number" name="default_access_months" value="${settings.default_access_months||'12'}" min="0" style="max-width:200px">
+        <small style="color:var(--hint);font-size:11px;display:block;margin-top:4px">
+          Шинээр бүртгүүлсэн хэрэглэгчийн хандах эрхийн хугацаа.<br>
+          <b>0</b> = хязгааргүй (хугацаа байхгүй, никогда дуусахгүй).<br>
+          <b>12</b> = 12 сар (жишээ: жилийн хандах эрх). Хугацаа дуусахад автомат идэвхгүй болно.
+        </small>
+      </div>
+
       <div style="font-size:12px;font-weight:700;color:var(--purple-l);letter-spacing:1px;text-transform:uppercase;margin:1.5rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">Нүүр хуудас — Hero хэсэг</div>
 
       <div class="field">
@@ -803,7 +922,7 @@ const uploadSettings = multer({
 });
 
 router.post('/settings', uploadSettings.fields([{ name: 'site_logo', maxCount: 1 }]), (req, res) => {
-  const fields = ['hero_title','hero_line1','hero_line2','hero_line3','hero_line1_mode','hero_line2_mode','hero_line3_mode','hero_subtitle','hero_badge','cta_title','cta_subtitle','stat_lessons','stat_blocks','stat_hours','stat_access','logo_size','grad_from','grad_to','text_color_mode','contact_title','contact_subtitle','contact_phone','contact_email','contact_facebook','contact_instagram','contact_address'];
+  const fields = ['hero_title','hero_line1','hero_line2','hero_line3','hero_line1_mode','hero_line2_mode','hero_line3_mode','hero_subtitle','hero_badge','cta_title','cta_subtitle','stat_lessons','stat_blocks','stat_hours','stat_access','logo_size','grad_from','grad_to','text_color_mode','contact_title','contact_subtitle','contact_phone','contact_email','contact_facebook','contact_instagram','contact_address','default_access_months'];
   const upsert = db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?,?)');
   fields.forEach(f => { if (req.body[f] !== undefined) upsert.run(f, req.body[f]); });
   if (req.files?.site_logo?.[0]) {

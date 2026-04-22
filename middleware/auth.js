@@ -1,6 +1,28 @@
 function requireAuth(req, res, next) {
-  if (req.session && req.session.userId) return next();
-  res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
+  if (!req.session || !req.session.userId) {
+    return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
+  }
+  // Админд шалгалтгүй
+  if (req.session.role === 'admin') return next();
+
+  // Хугацаа болон идэвх шалгах
+  const db = require('../db');
+  try {
+    const u = db.prepare('SELECT is_active, expires_at FROM users WHERE id=?').get(req.session.userId);
+    if (!u || u.is_active === 0) {
+      req.session.destroy(() => {});
+      return res.redirect('/login?err=inactive');
+    }
+    if (u.expires_at) {
+      const exp = new Date(u.expires_at);
+      if (exp < new Date()) {
+        db.prepare('UPDATE users SET is_active=0 WHERE id=?').run(req.session.userId);
+        req.session.destroy(() => {});
+        return res.redirect('/login?err=expired');
+      }
+    }
+  } catch(e) {}
+  next();
 }
 
 function requireAdmin(req, res, next) {
