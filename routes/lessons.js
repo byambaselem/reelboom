@@ -202,10 +202,9 @@ function renderLessons(grouped, done, session) {
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-      const first = document.getElementById('lessons-' + '${grouped[0]?.slug || ''}');
-      const firstArrow = document.getElementById('arrow-' + '${grouped[0]?.slug || ''}');
-      if (first) { first.classList.add('open'); }
-      if (firstArrow) { firstArrow.style.transform = 'rotate(180deg)'; }
+      // Бүх бүлгийг default-аар нээх
+      document.querySelectorAll('.cat-cards-wrap').forEach(el => el.classList.add('open'));
+      document.querySelectorAll('.cat-sec-arrow').forEach(el => el.style.transform = 'rotate(180deg)');
     });
     </script>
   `);
