@@ -340,6 +340,11 @@ router.post('/users/:id/delete', (req, res) => {
 router.get('/users/:id', (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id=?').get(req.params.id);
   if (!user) return res.redirect('/admin/users');
+  // Нууц үг сэргээсэн флаш (нэг удаа харагдана)
+  const pwFlash = (req.session.pwFlash && req.session.pwFlash.userId == user.id) ? req.session.pwFlash : null;
+  const pwError = (req.session.pwError && req.session.pwError.userId == user.id) ? req.session.pwError.msg : null;
+  delete req.session.pwFlash;
+  delete req.session.pwError;
   const sessions = db.prepare('SELECT * FROM user_sessions WHERE user_id=? ORDER BY last_seen DESC').all(user.id);
   const progress = db.prepare(`
     SELECT p.*, l.title as lesson_title, l.lesson_num
@@ -377,6 +382,40 @@ router.get('/users/:id', (req, res) => {
           <button class="btn-danger-sm" onclick="return confirm('Хэрэглэгчийг бүхэлд нь устгах уу?')">Устгах</button>
         </form>
       </div>` : ''}
+    </div>
+
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.25rem;margin-bottom:1rem">
+      <h3 style="color:#fff;font-size:14px;margin-bottom:4px">🔐 Нууц үг сэргээх</h3>
+      <p style="color:var(--hint);font-size:12px;margin-bottom:1rem">Хэрэглэгч нууц үгээ мартсан бол энд шинэ нууц үг тавьж өгнө. Шинэ нууц үгийг хэрэглэгчид дамжуулаарай.</p>
+
+      ${pwFlash ? `
+      <div style="padding:12px 14px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);border-radius:10px;margin-bottom:1rem">
+        <div style="color:#10b981;font-size:12px;font-weight:700;margin-bottom:6px">✓ Нууц үг амжилттай солигдлоо</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <code id="newPw" style="font-family:var(--mono);font-size:16px;color:#fff;background:var(--bg2);padding:6px 12px;border-radius:8px;letter-spacing:1px">${escHtmlAdmin(pwFlash.password)}</code>
+          <button type="button" class="btn-small" onclick="navigator.clipboard.writeText(document.getElementById('newPw').innerText);this.innerText='✓ Хуулагдлаа'">📋 Хуулах</button>
+        </div>
+        <div style="color:var(--hint);font-size:11px;margin-top:8px">⚠️ Энэ нууц үг зөвхөн нэг удаа харагдана. Одоо хуулж аваарай.</div>
+      </div>` : ''}
+
+      ${pwError ? `
+      <div style="padding:10px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;margin-bottom:1rem;color:#fca5a5;font-size:12px">✗ ${escHtmlAdmin(pwError)}</div>` : ''}
+
+      <form method="POST" action="/admin/users/${user.id}/password">
+        <div class="field" style="margin-bottom:10px">
+          <label>Шинэ нууц үг</label>
+          <input type="text" name="new_password" placeholder="Хамгийн багадаа 6 тэмдэгт" minlength="6" autocomplete="off" style="font-family:var(--mono)">
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;color:var(--hint);font-size:12px;margin-bottom:12px;cursor:pointer">
+          <input type="checkbox" name="logout_all" value="1" checked style="width:auto;margin:0">
+          Бүх төхөөрөмжөөс гаргах (шинэ нууц үгээр дахин нэвтэрнэ)
+        </label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button type="submit" class="btn-primary" onclick="return confirm('${escHtmlAdmin(user.name)}-ийн нууц үгийг солих уу?')">Нууц үг солих</button>
+          <span style="color:var(--hint);font-size:11px;margin:0 4px">эсвэл</span>
+          <button type="submit" name="generate" value="1" class="btn-small" style="background:rgba(139,92,246,0.2);color:#a78bfa;border:1px solid rgba(139,92,246,0.3)" onclick="return confirm('Санамсаргүй нууц үг үүсгэх үү?')">🎲 Автоматаар үүсгэх</button>
+        </div>
+      </form>
     </div>
 
     ${user.role === 'student' ? `
@@ -521,6 +560,44 @@ router.post('/users/:id/access-add', (req, res) => {
 
   db.prepare('UPDATE users SET expires_at=?, is_active=1 WHERE id=?').run(expiresAt, req.params.id);
   res.redirect('/admin/users/' + req.params.id);
+});
+
+// Нууц үг сэргээх (админ)
+router.post('/users/:id/password', (req, res) => {
+  const back = '/admin/users/' + req.params.id;
+  const user = db.prepare('SELECT id, name FROM users WHERE id=?').get(req.params.id);
+  if (!user) return res.redirect('/admin/users');
+
+  const generate = req.body.generate === '1';
+  let newPassword;
+
+  if (generate) {
+    // Хялбар уншигдах санамсаргүй нууц үг (төөрөгдүүлэх тэмдэгтгүй)
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const bytes = require('crypto').randomBytes(10);
+    newPassword = Array.from(bytes).map(b => chars[b % chars.length]).join('');
+  } else {
+    newPassword = (req.body.new_password || '').trim();
+    if (newPassword.length < 6) {
+      req.session.pwError = { userId: user.id, msg: 'Нууц үг хамгийн багадаа 6 тэмдэгт байх ёстой.' };
+      return res.redirect(back);
+    }
+    if (newPassword.length > 72) {
+      req.session.pwError = { userId: user.id, msg: 'Нууц үг хэт урт байна (72 тэмдэгтээс бага).' };
+      return res.redirect(back);
+    }
+  }
+
+  const hash = bcrypt.hashSync(newPassword, 10);
+  db.prepare('UPDATE users SET password=? WHERE id=?').run(hash, user.id);
+
+  // Шинэ нууц үгээр дахин нэвтрүүлэхийн тулд төхөөрөмжүүдээс гаргана
+  if (req.body.logout_all === '1' || generate) {
+    db.prepare('DELETE FROM user_sessions WHERE user_id=?').run(user.id);
+  }
+
+  req.session.pwFlash = { userId: user.id, password: newPassword };
+  res.redirect(back);
 });
 
 router.post('/users/:id/activate', (req, res) => {
